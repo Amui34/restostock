@@ -6,12 +6,15 @@ async function boot(){
     return;
   }
   sbClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-  await ensureSignedIn();
+
+  await ensureSignedIn();     // qui êtes-vous ?
+  await ensureCompany();      // dans quel établissement ?
 
   let loaded = null;
   try{
     loaded = await loadInitialState();
   }catch(err){
+    console.error(err);
     document.getElementById('app').innerHTML =
       '<div class="card empty"><div class="big">⚠</div><h3>Connexion impossible</h3>'
       + '<p>Impossible de joindre la base de données. Vérifiez la connexion internet, puis rechargez la page.</p></div>';
@@ -19,14 +22,16 @@ async function boot(){
     return;
   }
 
-  const firstRun = !loaded;
+  const premierLancement = !loaded;
   state = loaded || clone(SEED);
   if(loaded && (!state.meta || state.meta.seed_version !== SEED.meta.seed_version)){
     mergeSeedUpdate();
   }
   migrateState();
+  // Le nom saisi à la création de l'établissement fait foi.
+  if(sbCompany && sbCompany.name) state.settings.establishment_name = sbCompany.name;
 
-  if(firstRun && !sbReadOnly){
+  if(premierLancement && !sbReadOnly){
     try{ await seedSupabase(state); }
     catch(err){ console.error(err); setSaveIndicator('error','Installation incomplète — rechargez la page'); }
   } else if(sbReadOnly){

@@ -39,7 +39,7 @@ function importBackup(file){
     try{
       const data = JSON.parse(reader.result);
       if(!data || !Array.isArray(data.products) || !Array.isArray(data.recipes)){
-        alert('Ce fichier ne ressemble pas à une sauvegarde valide du Livre de Prix.');
+        alert('Ce fichier ne ressemble pas à une sauvegarde valide de RestoStock.');
         return;
       }
       if(!confirm('Remplacer toutes les données actuelles par celles de ce fichier ?')) return;

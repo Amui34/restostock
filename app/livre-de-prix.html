@@ -1,4 +1,4 @@
-<title>Livre de Prix</title>
+<title>RestoStock</title>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700&family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
@@ -348,7 +348,7 @@ th .info-tip{ font-weight:600; }
   <div class="sidebar-backdrop no-print" id="sidebar-backdrop"></div>
   <aside class="sidebar no-print" id="sidebar">
     <div class="brand">
-      <div class="mark">Livre de Prix</div>
+      <div class="mark">RestoStock</div>
       <div class="sub" id="brand-sub"></div>
     </div>
     <nav class="nav" id="nav"></nav>
@@ -25750,7 +25750,7 @@ function renderBrand(){
   // Le nom seul : les activités sont déjà les intitulés des groupes du menu,
   // juste en dessous — les répéter ici faisait déborder le bandeau sur trois lignes.
   el.textContent = establishmentName() + (typeof BRAND_SUFFIX==='string' ? BRAND_SUFFIX : '');
-  document.title = 'Livre de Prix — ' + establishmentName();
+  document.title = establishmentName() + ' · RestoStock';
 }
 /* Le thème suit l'appareil par défaut. Mais une cuisine en plein jour et un bar
    en soirée n'ont pas les mêmes besoins, et c'est souvent la même tablette :
@@ -27144,8 +27144,8 @@ function onboardingHTML(step){
         <div style="font-size:13px;color:var(--ink-faint);font-style:italic;">${texte}</div>
       </div>`;
     body = `
-      <h2 style="font-family:var(--font-display);font-size:29px;line-height:1.18;margin-bottom:10px;">Moins de saisie,<br>plus de visibilité</h2>
-      <p style="color:var(--ink-muted);margin-bottom:24px;">Tout s’enchaîne à partir de ce que vous notez déjà.</p>
+      <h2 style="font-family:var(--font-display);font-size:29px;line-height:1.18;margin-bottom:10px;">Bienvenue<br>dans RestoStock</h2>
+      <p style="color:var(--ink-muted);margin-bottom:24px;">Moins de saisie, plus de visibilité : tout s’enchaîne à partir de ce que vous notez déjà.</p>
       <div style="display:flex;flex-direction:column;gap:9px;">
         ${maillon('📦','Vous saisissez une livraison','La quantité reçue et le prix du bon.')}
         ${fleche('le stock monte, le prix moyen se met à jour')}

@@ -2,7 +2,7 @@
 <html lang="fr">
 <head>
 <meta charset="utf-8">
-<title>Livre de Prix</title>
+<title>RestoStock</title>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="theme-color" content="#1a1714">
 <link rel="preconnect" href="https://fonts.googleapis.com">
