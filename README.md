@@ -1,8 +1,10 @@
-# Grimoire à prix — Bivouak
+# RestoStock
 
-Livre de prix et de marges pour le bar et la cuisine du Bivouak. Suit les prix
-d'achat par fournisseur, calcule le coût et le food cost de chaque fiche
-technique, gère le stock et les inventaires.
+Suivi des coûts et des stocks en restauration. Chaque établissement crée son
+espace : prix d'achat par fournisseur, coût et food cost de chaque fiche
+technique, stock, inventaires, et mesure des pertes réelles en fin de mois.
+
+**restostock.fr** — la vitrine publique · **restostock.fr/app/** — l'application
 
 ## Par où commencer
 
@@ -29,7 +31,8 @@ On modifie `source/` et `docs/*.md`, puis on régénère.
 
 | Fichier | Usage | Sauvegarde |
 |---|---|---|
-| `app/index.html` | **La version d'équipe.** À déposer chez l'hébergeur, une adresse pour tout le monde | Base partagée Supabase, en direct |
+| `app/index.html` | **La vitrine publique** — explique l'outil, généré depuis `source/landing.html` | — |
+| `app/app/index.html` | **L'application d'équipe**, servie sous `/app/` | Base partagée Supabase, en direct |
 | `app/livre-de-prix-hors-ligne.html` | Filet de secours : s'ouvre sans connexion, sur la tablette | Dans ce navigateur, sur cet appareil uniquement |
 | `app/livre-de-prix.html` | Version Artifact Claude, héritée du démarrage du projet | Dans l'Artifact |
 

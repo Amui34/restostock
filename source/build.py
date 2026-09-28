@@ -27,8 +27,14 @@ OUT_DIR = ROOT / "app"
 TARGETS = {
     "online": "livre-de-prix.html",
     "offline": "livre-de-prix-hors-ligne.html",
-    "supabase": "index.html",          # le fichier à déposer chez l'hébergeur
+    # La vitrine occupe la racine du site ; l'application vit sous /app/,
+    # comme chez oplaa (vitrine + app séparées).
+    "supabase": "app/index.html",
 }
+
+# Page publique, copiée telle quelle : pas de données ni de marqueurs à injecter.
+LANDING_SRC = HERE / "landing.html"
+LANDING_OUT = "index.html"
 
 # Coordonnées du projet Supabase. Ces deux valeurs sont publiques par conception
 # (elles sont destinées à figurer dans la page) ; la clé « service_role », elle,
@@ -79,6 +85,20 @@ def assemble(target):
     return core
 
 
+def copy_landing(check_only):
+    """La vitrine n'a pas besoin du moteur de build : on la recopie."""
+    if not LANDING_SRC.exists():
+        return
+    html = LANDING_SRC.read_text(encoding="utf-8")
+    out = OUT_DIR / LANDING_OUT
+    if check_only:
+        etat = "identique" if out.exists() and out.read_text(encoding="utf-8") == html else "DIFFÉRENT"
+        print(f"{LANDING_OUT} : {etat} ({len(html)} caractères)")
+    else:
+        out.write_text(html, encoding="utf-8")
+        print(f"{LANDING_OUT} généré ({len(html)} caractères) — vitrine")
+
+
 def main():
     args = [a for a in sys.argv[1:] if not a.startswith("-")]
     check_only = "--check" in sys.argv
@@ -90,12 +110,16 @@ def main():
             raise SystemExit(f"Cible inconnue : {name}. Choix : {', '.join(TARGETS)}")
         html = assemble(name)
         out = OUT_DIR / TARGETS[name]
+        out.parent.mkdir(parents=True, exist_ok=True)
         if check_only:
             status = "identique" if out.exists() and out.read_text(encoding="utf-8") == html else "DIFFÉRENT"
             print(f"{out.name} : {status} ({len(html)} caractères)")
         else:
             out.write_text(html, encoding="utf-8")
-            print(f"{out.name} généré ({len(html)} caractères)")
+            print(f"{TARGETS[name]} généré ({len(html)} caractères)")
+
+    if not args or "supabase" in names:
+        copy_landing(check_only)
 
 
 if __name__ == "__main__":
