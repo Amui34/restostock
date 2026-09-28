@@ -1,0 +1,1 @@
+      <div style="margin-top:6px;">Données stockées sur cet appareil uniquement.</div>

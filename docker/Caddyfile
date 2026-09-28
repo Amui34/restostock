@@ -1,0 +1,20 @@
+# =============================================================================
+# Grimoire Bivouak — Caddy interne du conteneur (HTTP :80).
+# Le TLS est géré par le proxy partagé (amui-proxy), pas ici.
+#
+# Sert le site statique (app/index.html + versions). L'app parle directement à
+# Supabase depuis le navigateur : aucun backend à proxifier.
+# =============================================================================
+
+{
+	# Pas de HTTPS interne : le proxy amont s'en charge.
+	auto_https off
+}
+
+:80 {
+	encode zstd gzip
+	root * /srv
+	# Repli sur index.html (la version « équipe » servie à la racine).
+	try_files {path} /index.html
+	file_server
+}

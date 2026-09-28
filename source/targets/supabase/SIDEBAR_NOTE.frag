@@ -1,0 +1,1 @@
+      <div style="margin-top:6px;">Données partagées avec toute l’équipe.</div>

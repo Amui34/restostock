@@ -1,0 +1,23 @@
+# =============================================================================
+# Grimoire Bivouak — derrière le proxy partagé (amui-proxy)
+# Aucun port publié : le proxy Caddy joint l'app via l'alias « grimoire-app »
+# sur le réseau Docker « web ».
+#
+# NB : le routage du domaine se fera plus tard dans amui-proxy (bloc Caddyfile
+# + variable) une fois le nom de domaine choisi.
+#
+#   docker compose -f compose.proxy.yaml up -d --build
+# =============================================================================
+
+services:
+  grimoire:
+    build: .
+    restart: unless-stopped
+    networks:
+      web:
+        aliases:
+          - grimoire-app
+
+networks:
+  web:
+    external: true

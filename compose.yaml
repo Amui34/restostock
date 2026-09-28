@@ -1,0 +1,12 @@
+# =============================================================================
+# Grimoire Bivouak — lancement en local (sans proxy)
+#   docker compose up -d --build
+#   → http://localhost:8092
+# =============================================================================
+
+services:
+  grimoire:
+    build: .
+    restart: unless-stopped
+    ports:
+      - "8092:80"

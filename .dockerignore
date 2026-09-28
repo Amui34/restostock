@@ -1,0 +1,13 @@
+# Contexte de build minimal : l'image ne sert que app/ + docker/Caddyfile.
+source
+data
+docs
+.git
+.github
+.gitignore
+*.md
+compose.yaml
+compose.proxy.yaml
+**/.DS_Store
+**/__pycache__
+**/*.pyc
