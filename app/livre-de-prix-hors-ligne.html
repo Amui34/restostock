@@ -97,7 +97,7 @@ h1,h2,h3,h4{ font-family:var(--font-display); font-weight:600; text-wrap:balance
   overflow-y:auto;
 }
 .brand{ display:flex; flex-direction:column; gap:3px; padding:2px 8px 16px; border-bottom:1px solid var(--border); }
-.brand .mark{ font-family:var(--font-display); font-weight:700; font-size:21px; letter-spacing:.2px; }
+.brand .mark{ font-family:var(--font-display); font-weight:700; font-size:21px; letter-spacing:-.01em; font-variation-settings:'opsz' 120; }
 .brand .sub{ font-size:11px; color:var(--ink-muted); text-transform:uppercase; letter-spacing:.08em; }
 .nav{ display:flex; flex-direction:column; gap:2px; }
 .nav-group-label{ font-size:10.5px; text-transform:uppercase; letter-spacing:.09em; color:var(--ink-faint); margin:18px 8px 6px; font-weight:600; }
@@ -115,7 +115,10 @@ h1,h2,h3,h4{ font-family:var(--font-display); font-weight:600; text-wrap:balance
   content:''; position:absolute; left:-14px; top:6px; bottom:6px; width:3px;
   border-radius:0 3px 3px 0; background:var(--accent);
 }
-.nav button .ico{ width:18px; text-align:center; opacity:.85; font-size:15px; }
+.nav button .ico{ width:18px; display:grid; place-items:center; opacity:.9; flex:none; }
+.ic{ display:block; }
+/* Une icône posée dans une phrase doit suivre la ligne, pas flotter. */
+.ic-inline{ vertical-align:-3px; margin-right:6px; opacity:.75; }
 .sidebar-foot{ margin-top:auto; padding:10px 8px; font-size:11.5px; color:var(--ink-faint); border-top:1px solid var(--border); padding-top:12px; }
 #save-indicator{ display:flex; align-items:center; gap:6px; }
 #save-indicator .dot{ width:6px;height:6px;border-radius:50%; background:var(--ink-faint); }
@@ -134,17 +137,33 @@ h1,h2,h3,h4{ font-family:var(--font-display); font-weight:600; text-wrap:balance
 
 /* ============ Bits ============ */
 .card{ background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); box-shadow:var(--shadow); }
-.kpi-row{ display:grid; grid-template-columns:repeat(auto-fit,minmax(170px,1fr)); gap:12px; margin-bottom:24px; }
-.kpi{ padding:15px 16px; }
-.kpi.clickable{ transition:box-shadow .12s,border-color .12s; }
-.kpi.clickable:hover{ border-color:var(--accent); box-shadow:0 0 0 2px var(--accent-wash); }
-.kpi .label{ font-size:12px; text-transform:uppercase; letter-spacing:.06em; color:var(--ink-muted); }
-.kpi .value{ font-family:var(--font-display); font-size:30px; margin-top:5px; line-height:1.1; }
+/* Les chiffres clés ne sont plus des boîtes posées côte à côte mais un bandeau
+   réglé par des filets — comme la tête d'un document, pas comme un tableau de
+   bord d'application. Empiler des cartes identiques est ce qui fait qu'une
+   interface finit par ressembler à toutes les autres. */
+.kpi-row{
+  display:grid; grid-template-columns:repeat(auto-fit,minmax(190px,1fr)); gap:0;
+  margin:0 0 30px; border-top:1px solid var(--border); border-bottom:1px solid var(--border);
+}
+.kpi{ background:none; border:none; box-shadow:none; border-radius:0; padding:18px 24px 18px 0; }
+.kpi + .kpi{ border-left:1px solid var(--border); padding-left:24px; }
+.kpi.clickable{ transition:background .12s; }
+.kpi.clickable:hover{ background:var(--surface); box-shadow:none; border-color:var(--border); }
+.kpi .label{ font-size:11.5px; font-weight:600; text-transform:uppercase; letter-spacing:.09em; color:var(--ink-faint); }
+/* Fraunces a une taille optique variable : un grand corps demande des fûts plus
+   fins et des contrastes plus marqués qu'un petit. On le lui dit. */
+.kpi .value{
+  font-family:var(--font-display); font-size:32px; margin-top:6px; line-height:1.05;
+  font-variation-settings:'opsz' 96; font-variant-numeric:tabular-nums lining-nums;
+}
 .kpi .value.small{ font-size:19px; }
 .kpi .note{ font-size:12.5px; color:var(--ink-faint); margin-top:2px; }
 
 .section{ margin-bottom:30px; }
-.section-head{ display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:12px; flex-wrap:wrap; }
+.section-head{
+  display:flex; align-items:baseline; justify-content:space-between; gap:12px;
+  margin-bottom:14px; padding-bottom:9px; border-bottom:1px solid var(--border); flex-wrap:wrap;
+}
 .section-head h2{ font-size:17px; }
 .section-head .hint{ font-size:12.5px; color:var(--ink-muted); }
 
@@ -166,9 +185,9 @@ select.pill, .toolbar select{ padding:10px 12px; min-height:42px; font-size:14.5
 .btn-sm{ padding:7px 12px; min-height:36px; font-size:13.5px; border-radius:8px; }
 .spacer{ flex:1; }
 
-.tablewrap{ overflow-x:auto; border:1px solid var(--border); border-radius:var(--radius); background:var(--surface); box-shadow:var(--shadow); }
+.tablewrap{ overflow-x:auto; border:1px solid var(--border); border-radius:var(--radius); background:var(--surface); }
 table{ width:100%; border-collapse:collapse; font-size:14.5px; }
-th{ text-align:left; padding:11px 14px; font-size:11.5px; text-transform:uppercase; letter-spacing:.05em; color:var(--ink-muted); border-bottom:1px solid var(--border); background:var(--surface-2); white-space:nowrap; position:sticky; top:0; }
+th{ text-align:left; padding:11px 14px; font-size:11px; font-weight:600; text-transform:uppercase; letter-spacing:.09em; color:var(--ink-faint); border-bottom:1px solid var(--border); background:var(--surface-2); white-space:nowrap; position:sticky; top:0; }
 th.sortable{ cursor:pointer; user-select:none; }
 th.sortable:hover{ color:var(--ink); }
 td{ padding:12px 14px; border-bottom:1px solid var(--border); vertical-align:middle; }
@@ -262,19 +281,19 @@ th .info-tip{ font-weight:600; }
 .photo-drop{ width:100%; aspect-ratio:4/3; border:2px dashed var(--border); border-radius:10px; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:6px; text-align:center; padding:12px; color:var(--ink-faint); cursor:pointer; background:var(--surface-2); }
 .photo-drop:hover{ border-color:var(--accent); color:var(--accent); }
 .photo-drop .ico{ font-size:26px; }
-.fiche-top h2{ font-size:24px; }
+.fiche-top h2{ font-size:26px; font-variation-settings:'opsz' 96; letter-spacing:-.012em; }
 .fiche-top .meta{ font-size:12px; color:var(--ink-muted); margin-top:4px; }
 .fiche-grid{ display:grid; grid-template-columns:2.2fr 1fr; gap:24px; align-items:start; }
 .fiche-metrics{ display:grid; grid-template-columns:1fr 1fr; gap:10px; }
 .metric-box{ background:var(--surface-2); border-radius:8px; padding:11px 13px; }
 .metric-box .l{ font-size:11px; text-transform:uppercase; letter-spacing:.05em; color:var(--ink-muted); }
-.metric-box .v{ font-family:var(--font-mono); font-size:18px; font-weight:600; margin-top:3px; }
+.metric-box .v{ font-family:var(--font-mono); font-size:18px; font-weight:600; margin-top:3px; font-variant-numeric:tabular-nums; }
 /* Le food cost est le chiffre qui décide de garder ou de changer une recette :
    il mérite d'être lu d'un coup d'œil, et de porter lui-même sa couleur de santé,
    au lieu d'être noyé parmi cinq indicateurs de même poids. */
 .metric-hero{ grid-column:1/-1; border-radius:10px; padding:16px 18px; display:flex; align-items:baseline; gap:14px; flex-wrap:wrap; }
 .metric-hero .l{ font-size:11.5px; text-transform:uppercase; letter-spacing:.06em; opacity:.85; }
-.metric-hero .v{ font-family:var(--font-display); font-size:38px; line-height:1; font-weight:600; }
+.metric-hero .v{ font-family:var(--font-display); font-size:38px; line-height:1; font-weight:600; font-variation-settings:'opsz' 96; font-variant-numeric:tabular-nums lining-nums; }
 .metric-hero .s{ font-size:13.5px; opacity:.85; }
 .hero-good{ background:var(--good-wash); color:var(--good); }
 .hero-warning{ background:var(--warning-wash); color:var(--warning); }
@@ -25225,6 +25244,50 @@ function compressImage(file, maxSide, quality){
     reader.readAsDataURL(file);
   });
 }
+/* ================= Icônes =================
+   Dessinées ici plutôt qu'empruntées aux emoji : un emoji change de dessin
+   selon l'appareil, ne s'aligne pas sur la ligne de base et n'a pas de style
+   commun avec ses voisins. Ces tracés partagent une épaisseur, des extrémités
+   arrondies et la couleur du texte — ils se fondent dans l'interface au lieu
+   de la piquer de pastilles colorées. */
+const ICONS = {
+  box:       '<path d="M3 7.5 12 3l9 4.5v9L12 21l-9-4.5v-9Z"/><path d="m3 7.5 9 4.5 9-4.5"/><path d="M12 12v9"/>',
+  receipt:   '<path d="M6 3h12v18l-2-1.5L14 21l-2-1.5L10 21l-2-1.5L6 21V3Z"/><path d="M9 8h6M9 12h6"/>',
+  clipboard: '<path d="M9.5 4h5v2.5h-5z"/><path d="M9.5 5.2H7.5a1 1 0 0 0-1 1V20a1 1 0 0 0 1 1h9a1 1 0 0 0 1-1V6.2a1 1 0 0 0-1-1h-2"/><path d="M9 11h6M9 15h4"/>',
+  checklist: '<path d="m4 7 1.4 1.4L8 5.8"/><path d="m4 13 1.4 1.4L8 11.8"/><path d="m4 19 1.4 1.4L8 17.8"/><path d="M11 7h9M11 13h9M11 19h6"/>',
+  trendDown: '<path d="M3 7l6.5 6.5L13 10l8 8"/><path d="M21 13v5h-5"/>',
+  chart:     '<path d="M3 20h18"/><path d="m5 15 4-5 4 3 6-8"/>',
+  alert:     '<path d="M12 4 2.5 20h19L12 4Z"/><path d="M12 10.5v3.5M12 17h.01"/>',
+  truck:     '<path d="M3 6.5h11v9.5H3z"/><path d="M14 9.5h4l3 3v3.5h-7z"/><circle cx="7" cy="18" r="1.9"/><circle cx="17" cy="18" r="1.9"/>',
+  lock:      '<rect x="4.5" y="10" width="15" height="10" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/>',
+  glass:     '<path d="M4 4h16l-8 8.5L4 4Z"/><path d="M12 12.5V19M8.5 19h7"/>',
+  pot:       '<path d="M4 9h16v6a4 4 0 0 1-4 4H8a4 4 0 0 1-4-4V9Z"/><path d="M2 9.5h2M20 9.5h2M9 5.5V4M12 5.5V4M15 5.5V4"/>',
+  clock:     '<circle cx="12" cy="12" r="8.5"/><path d="M12 7v5l3.5 2"/>',
+  history:   '<path d="M3.5 12a8.5 8.5 0 1 0 2.7-6.2"/><path d="M3.5 5.2v4h4"/><path d="M12 8v4.4l3 1.8"/>',
+  search:    '<circle cx="11" cy="11" r="6.5"/><path d="m16 16 4.4 4.4"/>',
+  printer:   '<path d="M7 9V3.5h10V9"/><rect x="4" y="9" width="16" height="7" rx="2"/><path d="M7 13.5h10v7H7z"/>',
+  flask:     '<path d="M10 3.5h4M11 3.5v5.6l-4.8 8.7A2 2 0 0 0 8 21h8a2 2 0 0 0 1.8-3.2L13 9.1V3.5"/>',
+  camera:    '<path d="M4 8h3.5L9 6h6l1.5 2H20a1 1 0 0 1 1 1v9a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V9a1 1 0 0 1 1-1Z"/><circle cx="12" cy="13.2" r="3.4"/>',
+  cart:      '<path d="M3 4.5h2l2.5 10.5h10L20 7.5H6"/><circle cx="9" cy="19" r="1.5"/><circle cx="17" cy="19" r="1.5"/>',
+  wine:      '<path d="M7 3.5h10l-1 6.5a4 4 0 0 1-8 0L7 3.5Z"/><path d="M12 14v6M9 20h6"/>',
+  gauge:     '<path d="M4 18a8 8 0 1 1 16 0"/><path d="m12 18 4.2-5.2"/>',
+  grid:      '<rect x="3.5" y="3.5" width="7" height="7" rx="1"/><rect x="13.5" y="3.5" width="7" height="7" rx="1"/><rect x="3.5" y="13.5" width="7" height="7" rx="1"/><rect x="13.5" y="13.5" width="7" height="7" rx="1"/>',
+  tag:       '<path d="M4 4h7.2l8.8 8.8-7.2 7.2L4 11.2V4Z"/><circle cx="8" cy="8" r="1.3"/>',
+  gear:      '<circle cx="12" cy="12" r="3"/><path d="M12 2.6v3M12 18.4v3M21.4 12h-3M5.6 12h-3M18.6 5.4l-2.1 2.1M7.5 16.5l-2.1 2.1M18.6 18.6l-2.1-2.1M7.5 7.5 5.4 5.4"/>',
+  users:     '<circle cx="9" cy="8" r="3.4"/><path d="M2.6 20a6.4 6.4 0 0 1 12.8 0"/><path d="M16.2 5.3a3.4 3.4 0 0 1 0 5.4M17.8 20a6.4 6.4 0 0 0-1.9-4.6"/>',
+  check:     '<path d="m4.5 12.5 5 5 10-11"/>',
+  doc:       '<path d="M13 3H7a1 1 0 0 0-1 1v16a1 1 0 0 0 1 1h10a1 1 0 0 0 1-1V8l-5-5Z"/><path d="M13 3v5h5"/><path d="M9 13h6M9 17h4"/>',
+  download:  '<path d="M12 3.5v11"/><path d="m7.5 10.5 4.5 4.5 4.5-4.5"/><path d="M4.5 19.5h15"/>',
+  upload:    '<path d="M12 15.5v-11"/><path d="m7.5 8.5 4.5-4.5 4.5 4.5"/><path d="M4.5 19.5h15"/>',
+};
+function ico(name, size){
+  const d = ICONS[name];
+  if(!d) return '';
+  const s = size || 18;
+  return `<svg class="ic" viewBox="0 0 24 24" width="${s}" height="${s}" fill="none" stroke="currentColor" `
+    + `stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${d}</svg>`;
+}
+
 function uid(prefix){ return prefix + Math.random().toString(36).slice(2,9); }
 function clone(o){ return JSON.parse(JSON.stringify(o)); }
 function todayISO(){ return new Date().toISOString().slice(0,10); }
@@ -25741,8 +25804,8 @@ function stockKpis(){
    boulangerie, un traiteur ou un food-truck d'utiliser la même application
    sans qu'on la réécrive. Le reste du code ne parle plus que de `category.id`. */
 const DEFAULT_CATEGORIES = [
-  {id:'bar',     label:'Bar',     ico:'🍸', recipes_label:'Fiches cocktails', has_catalogue:true,  catalogue_label:'Bières & vins'},
-  {id:'cuisine', label:'Cuisine', ico:'🍳', recipes_label:'Fiches cuisine',   has_catalogue:false, catalogue_label:''},
+  {id:'bar',     label:'Bar',     ico:'glass', recipes_label:'Fiches cocktails', has_catalogue:true,  catalogue_label:'Bières & vins'},
+  {id:'cuisine', label:'Cuisine', ico:'pot',   recipes_label:'Fiches cuisine',   has_catalogue:false, catalogue_label:''},
 ];
 /* Le nom de l'établissement n'est pas dans le code : chaque restaurant saisit le
    sien au premier lancement. « Bivouak » n'était qu'un cas de test. */
@@ -25774,7 +25837,7 @@ function categoryLabel(id){
   const c = categoryById(id);
   return c ? c.label : id;
 }
-function categoryIco(id){ const c = categoryById(id); return c ? (c.ico||'▤') : '▤'; }
+function categoryIco(id){ const c = categoryById(id); return c ? (c.ico||'clipboard') : 'clipboard'; }
 function categoryRecipesLabel(c){ return c.recipes_label || ('Fiches ' + c.label.toLowerCase()); }
 function recipesViewId(catId){ return 'recipes-' + catId; }
 function catalogueViewId(catId){ return 'catalogue-' + catId; }
@@ -25841,6 +25904,10 @@ function normKey(name){
 // state, without touching existing products/recipes (so price history & edits are kept).
 // Matching is by normalized name so ids don't need to line up across seed regenerations.
 function mergeSeedUpdate(){
+  // La version en ligne ne transporte aucune donnée de départ : chaque
+  // établissement remplit son espace. Sans ce garde-fou, la fonction planterait
+  // le jour où quelqu'un l'appellerait par erreur.
+  if(!SEED || !SEED.products) return;
   const idMap = {};
   const existingByKey = {};
   state.products.forEach(p=>{ existingByKey[normKey(p.name)] = p; });
@@ -25925,25 +25992,25 @@ function mergeSeedUpdate(){
 function navGroups(){
   return [
   {group:'Tous les jours', items:[
-    {id:'reception', label:'Réception du jour', ico:'📦'},
-    ...categories().map(c=>({id:recipesViewId(c.id), label:categoryRecipesLabel(c), ico:c.ico||'▤'})),
-    ...categories().filter(c=>c.has_catalogue).map(c=>({id:catalogueViewId(c.id), label:(c.catalogue_label||'Vendus tels quels'), ico:'▥'})),
+    {id:'reception', label:'Réception du jour', ico:'box'},
+    ...categories().map(c=>({id:recipesViewId(c.id), label:categoryRecipesLabel(c), ico:c.ico||'clipboard'})),
+    ...categories().filter(c=>c.has_catalogue).map(c=>({id:catalogueViewId(c.id), label:(c.catalogue_label||'Vendus tels quels'), ico:'wine'})),
   ]},
   {group:'Chaque mois', items:[
-    {id:'inventory-list', label:'Inventaires', ico:'☑'},
-    {id:'sales', label:'Ventes du mois', ico:'🧾'},
+    {id:'inventory-list', label:'Inventaires', ico:'checklist'},
+    {id:'sales', label:'Ventes du mois', ico:'receipt'},
   ]},
   {group:'Piloter', items:[
-    {id:'dashboard', label:'Tableau de bord', ico:'◆'},
-    {id:'margins', label:'Marges', ico:'△'},
-    {id:'stock', label:'Stock & commandes', ico:'▦'},
-    {id:'history', label:'Historique', ico:'🕘'},
+    {id:'dashboard', label:'Tableau de bord', ico:'gauge'},
+    {id:'margins', label:'Marges', ico:'chart'},
+    {id:'stock', label:'Stock & commandes', ico:'grid'},
+    {id:'history', label:'Historique', ico:'history'},
   ]},
   {group:'Données', items:[
-    {id:'products', label:'Produits & prix', ico:'●'},
-    {id:'suppliers', label:'Fournisseurs', ico:'🚚'},
-    ...(reviewTotal() ? [{id:'review', label:'À vérifier ('+reviewTotal()+')', ico:'⚠'}] : []),
-    {id:'settings', label:'Réglages', ico:'⚙'},
+    {id:'products', label:'Produits & prix', ico:'tag'},
+    {id:'suppliers', label:'Fournisseurs', ico:'truck'},
+    ...(reviewTotal() ? [{id:'review', label:'À vérifier ('+reviewTotal()+')', ico:'alert'}] : []),
+    {id:'settings', label:'Réglages', ico:'gear'},
   ]},
   ];
 }
@@ -25968,7 +26035,7 @@ function renderNav(){
   const nav = document.getElementById('nav');
   nav.innerHTML = navGroups().map(g => `
     <div class="nav-group-label">${g.group}</div>
-    ${g.items.map(it => `<button data-nav="${it.id}" class="${ui.view===it.id?'active':''}"><span class="ico">${it.ico}</span>${it.label}</button>`).join('')}
+    ${g.items.map(it => `<button data-nav="${it.id}" class="${ui.view===it.id?'active':''}"><span class="ico">${ico(it.ico)}</span>${it.label}</button>`).join('')}
   `).join('');
 }
 
@@ -26042,7 +26109,7 @@ function render(){
     else if(ui.view==='product-detail') app.innerHTML = viewProductDetail(ui.id);
     else app.innerHTML = '';
   }catch(err){
-    app.innerHTML = `<div class="empty"><div class="big">⚠</div><h3>Une erreur est survenue</h3><p>${esc(err.message)}</p></div>`;
+    app.innerHTML = `<div class="empty"><div class="big">${ico('alert', 40)}</div><h3>Une erreur est survenue</h3><p>${esc(err.message)}</p></div>`;
     console.error(err);
   }
 }
@@ -26117,7 +26184,7 @@ function viewHistory(){
         <td>${esc(e.message)}</td>
       </tr>`).join('')}
     </tbody>
-  </table></div>` : `<div class="card empty"><div class="big">🕘</div><h3>Aucun événement pour l’instant</h3><p>Toute l’activité du restaurant (fiches, prix, stock, inventaires) apparaîtra ici au fur et à mesure.</p></div>`}
+  </table></div>` : `<div class="card empty"><div class="big">${ico('history', 40)}</div><h3>Aucun événement pour l’instant</h3><p>Toute l’activité du restaurant (fiches, prix, stock, inventaires) apparaîtra ici au fur et à mesure.</p></div>`}
   `;
 }
 
@@ -26212,7 +26279,7 @@ function viewDashboard(){
             <td class="num trend ${m.delta>0.0001?'up':m.delta<-0.0001?'down':'flat'}">${m.delta>0?'▲':m.delta<0?'▼':'—'} ${fmtMoney(Math.abs(m.delta))}</td>
           </tr>`).join('')}
       </tbody>
-    </table></div>` : `<div class="card empty"><div class="big">📈</div><h3>Aucune variation pour l’instant</h3><p>Modifiez le prix d’un produit pour commencer à suivre son évolution.</p></div>`}
+    </table></div>` : `<div class="card empty"><div class="big">${ico('chart', 40)}</div><h3>Aucune variation pour l’instant</h3><p>Modifiez le prix d’un produit pour commencer à suivre son évolution.</p></div>`}
   </div>
 
   <div class="section">
@@ -26232,7 +26299,7 @@ function viewDashboard(){
       </tbody>
     </table></div>
     ${dataIssues.length ? `<div class="hint" style="margin-top:10px;">⚠ ${dataIssues.length} recette${dataIssues.length>1?'s':''} avec des données d’import incomplètes (quantités ou prix de vente manquants) — repérables au badge <span class="badge-flag">à vérifier</span> dans les listes de fiches.</div>` : ''}
-    ${batchCount ? `<div class="hint" style="margin-top:6px;">🧪 ${batchCount} recette${batchCount>1?'s':''} préparée${batchCount>1?'s':''} en lot (plusieurs bouteilles/portions à partir d’une même préparation) — repérables au badge <span class="badge-batch">lot</span>, leur total a été recalé sur la valeur d’origine de la fiche pour éviter un double comptage des ingrédients de base.</div>` : ''}
+    ${batchCount ? `<div class="hint" style="margin-top:6px;">${ico('flask',14)} ${batchCount} recette${batchCount>1?'s':''} préparée${batchCount>1?'s':''} en lot (plusieurs bouteilles/portions à partir d’une même préparation) — repérables au badge <span class="badge-batch">lot</span>, leur total a été recalé sur la valeur d’origine de la fiche pour éviter un double comptage des ingrédients de base.</div>` : ''}
   </div>
   `;
 }
@@ -26287,7 +26354,7 @@ function viewMargins(){
         const dataIssue = x.dataIssue;
         return `
         <tr class="clickable" data-goto-recipe="${x.r.id}">
-          <td>${esc(x.r.name)} ${isBatchRecipe(x.r)?'<span class="badge-batch">🧪 lot</span>':''}</td>
+          <td>${esc(x.r.name)} ${isBatchRecipe(x.r)?('<span class="badge-batch">' + ico('flask',13) + ' lot</span>'):''}</td>
           <td>${esc(categoryLabel(x.r.category))}</td>
           <td class="num">${fmtMoney(x.t.pv_ttc)}</td>
           <td class="num">${fmtMoney(x.t.pv_ht)}</td>
@@ -26339,7 +26406,7 @@ function viewRecipeList(category){
     return `
     <div class="toolbar"><div class="spacer"></div>${addBtn}</div>
     <div class="card empty">
-      <div class="big">${categoryIco(category)}</div>
+      <div class="big">${ico(categoryIco(category), 40)}</div>
       <h3>Aucune fiche ${esc(categoryLabel(category).toLowerCase())} pour l’instant</h3>
       <p>Créez une fiche pour suivre son coût de revient et sa marge.</p>
       <div style="margin-top:14px;">${addBtn}</div>
@@ -26372,7 +26439,7 @@ function viewRecipeList(category){
         <td class="num">${fmtPct(t.foodPct)}</td>
         <td>${pillFor(marginStatus(t.foodPct))}</td>
         <td data-stop>${recipeStatusSelectHTML(r)}</td>
-        <td><button class="btn btn-ghost btn-sm" data-action="print-recipe" data-id="${r.id}" title="Imprimer">🖶</button></td>
+        <td><button class="btn btn-ghost btn-sm" data-action="print-recipe" data-id="${r.id}" title="Imprimer">${ico('printer',16)}</button></td>
       </tr>`;
     }).join('')}
     </tbody>
@@ -26383,7 +26450,7 @@ function viewRecipeList(category){
 /* ================= Catalogue (bières / vins) ================= */
 function viewCatalogue(catId){
   const cats = state.recipes.filter(r=>r.type==='catalogue' && (!catId || r.category===catId));
-  if(!cats.length) return `<div class="card empty"><div class="big">🍷</div><h3>Aucune carte pour l’instant</h3><p>Les produits vendus tels quels, sans recette de composition, apparaîtront ici.</p></div>`;
+  if(!cats.length) return `<div class="card empty"><div class="big">${ico('wine', 40)}</div><h3>Aucune carte pour l’instant</h3><p>Les produits vendus tels quels, sans recette de composition, apparaîtront ici.</p></div>`;
   const hh = hhSettings();
   return cats.map(r=>{
     const rows = (r.ingredients||[]).map((ing,idx)=>{
@@ -26497,7 +26564,7 @@ function viewSuppliers(){
     </tbody>
   </table></div>
   <div class="hint" style="margin-top:10px;">Cliquez sur un fournisseur pour voir tous ses produits et leurs prix.</div>
-  ` : `<div class="card empty"><div class="big">🔍</div><h3>Aucun fournisseur ne correspond</h3></div>`}
+  ` : `<div class="card empty"><div class="big">${ico('search', 40)}</div><h3>Aucun fournisseur ne correspond</h3></div>`}
   `;
 }
 function supplierLabel(p){
@@ -26827,7 +26894,7 @@ function viewReception(actionsEl){
          <tbody>${list.map(row).join('')}</tbody>
        </table></div>`
     : `<div class="card empty" style="margin-top:12px;">
-         <div class="big">📦</div><h3>Aucun produit à afficher</h3>
+         <div class="big">${ico('box', 40)}</div><h3>Aucun produit à afficher</h3>
          <p>${sup ? 'Ce fournisseur n’a encore aucun produit enregistré. Cherchez le produit par son nom : il sera rattaché à ce fournisseur dès que vous saisirez son prix.' : 'Cherchez le produit par son nom, ou créez-le s’il arrive pour la première fois.'}</p>
          <button class="btn btn-primary btn-sm" data-action="new-product">+ Nouveau produit</button>
        </div>`;
@@ -26990,7 +27057,7 @@ function viewSales(actionsEl){
     <div class="tablewrap"><table>
       <thead><tr><th>Fiche</th><th class="num">Vendues</th></tr></thead>
       <tbody>${list.map(row).join('')}</tbody>
-    </table></div>` : `<div class="card empty" style="margin-top:12px;"><div class="big">🧾</div><h3>Aucune fiche à la carte</h3></div>`}
+    </table></div>` : `<div class="card empty" style="margin-top:12px;"><div class="big">${ico('receipt', 40)}</div><h3>Aucune fiche à la carte</h3></div>`}
 
   ${detail}
   `;
@@ -27237,7 +27304,7 @@ function saveOnboardingCategories(form){
 function viewReview(){
   const c = reviewCounts();
   if(!reviewTotal()){
-    return `<div class="card empty"><div class="big">✓</div><h3>Rien à vérifier</h3>
+    return `<div class="card empty"><div class="big">${ico('check', 40)}</div><h3>Rien à vérifier</h3>
       <p>Toutes les données importées ont été confirmées. Ce que vous saisissez au quotidien réapparaîtra ici si quelque chose cloche.</p></div>`;
   }
 
@@ -27567,7 +27634,7 @@ function viewInventoryDetail(id, actionsEl){
         <button class="btn btn-danger btn-sm" data-action="delete-inventory" data-id="${inv.id}">Supprimer</button>
         <button class="btn btn-primary btn-sm" data-action="validate-inventory" data-id="${inv.id}">✓ Valider l’inventaire</button>`;
     } else {
-      actionsEl.innerHTML = `<button class="btn btn-sm" data-action="print-inventory" data-id="${inv.id}">🖶 Imprimer</button>`;
+      actionsEl.innerHTML = `<button class="btn btn-sm" data-action="print-inventory" data-id="${inv.id}">${ico('printer',16)} Imprimer</button>`;
     }
   }
   const catLabel = categoryLabel(inv.category);
@@ -27654,7 +27721,7 @@ function viewInventoryDetail(id, actionsEl){
   `;
   const emptyBlock = !rows.length ? (inProgress ? `
     <div class="card empty" style="margin-top:10px;">
-      <div class="big">🔍</div>
+      <div class="big">${ico('search', 40)}</div>
       <h3>Fiche de comptage vide</h3>
       <p>Cet inventaire a été créé en mode « vide ». Recherchez ci-dessus chaque produit que vous voyez physiquement pour l’ajouter au comptage.</p>
     </div>` : `<div class="hint" style="margin-top:14px;">Aucun produit compté dans cet inventaire.</div>`) : '';
@@ -27861,7 +27928,7 @@ function viewRecipeDetail(id, actionsEl){
     <div class="fiche-top">
       <div>
         <h2>${esc(r.name)}</h2>
-        <div class="meta">${esc(categoryLabel(r.category))} · Fiche du ${fmtDate(r.date_iso)} ${suspicious?'<span class="badge-flag">à vérifier — quantités/prix à confirmer</span>':''} ${isBatchRecipe(r)?'<span class="badge-batch">🧪 préparation en lot</span>':''} ${recipeStatus(r)==='test'?'<span class="pill pill-warning" title="Recette en essai, pas encore officiellement à la carte">en test</span>':recipeStatus(r)==='archived'?'<span class="pill pill-neutral" title="Ne figure plus à la carte">hors carte</span>':''}</div>
+        <div class="meta">${esc(categoryLabel(r.category))} · Fiche du ${fmtDate(r.date_iso)} ${suspicious?'<span class="badge-flag">à vérifier — quantités/prix à confirmer</span>':''} ${isBatchRecipe(r)?('<span class="badge-batch">' + ico('flask',13) + ' préparation en lot</span>'):''} ${recipeStatus(r)==='test'?'<span class="pill pill-warning" title="Recette en essai, pas encore officiellement à la carte">en test</span>':recipeStatus(r)==='archived'?'<span class="pill pill-neutral" title="Ne figure plus à la carte">hors carte</span>':''}</div>
       </div>
       <div>${pillFor(status)}</div>
     </div>
@@ -27932,7 +27999,7 @@ function viewRecipeDetail(id, actionsEl){
         </div>
 
         <div class="no-print" style="margin-top:16px;">
-          <h3 style="font-size:13px;color:var(--ink-muted);text-transform:uppercase;letter-spacing:.05em;">⏰ Happy Hour</h3>
+          <h3 style="font-size:13px;color:var(--ink-muted);text-transform:uppercase;letter-spacing:.05em;">${ico('clock',15)}<span class="ic-inline"></span>Happy Hour</h3>
           ${hht ? `
           <div class="fiche-metrics" style="margin-top:8px;">
             <div class="metric-box" style="grid-column:1/-1;border-color:var(--warning);background:var(--warning-wash);"><div class="l">Prix Happy Hour ${hh.enabled?`(${hh.start}–${hh.end})`:'(créneau désactivé dans Réglages)'}</div><div class="v">${fmtMoney(r.happy_hour_price)}</div></div>
@@ -27944,7 +28011,7 @@ function viewRecipeDetail(id, actionsEl){
         </div>
 
         <div class="no-print" style="margin-top:20px;">
-          <h3 style="font-size:13px;color:var(--ink-muted);text-transform:uppercase;letter-spacing:.05em;">📈 Évolution du food cost</h3>
+          <h3 style="font-size:13px;color:var(--ink-muted);text-transform:uppercase;letter-spacing:.05em;">${ico('chart',15)}<span class="ic-inline"></span>Évolution du food cost</h3>
           ${hist.length>=2 ? `
           <div class="card" style="padding:14px;margin-top:8px;">
             <div>${sparklineSVG(hist.map(h=>h.foodPct==null?0:h.foodPct))}</div>
@@ -27976,7 +28043,7 @@ function recipePhotoHTML(r){
   }
   return `<div class="fiche-photo-wrap no-print">
     <div class="photo-drop" data-action="recipe-photo" data-rid="${r.id}">
-      <div class="ico">📷</div>
+      <div class="ico">${ico('camera',26)}</div>
       <div><strong>Ajouter une photo du dressage</strong></div>
       <div class="hint">Elle apparaîtra aussi sur la fiche imprimée</div>
     </div>
@@ -27991,7 +28058,7 @@ function ficheBlockHTML(r){
     <div class="fiche-top">
       <div>
         <h2>${esc(r.name)}</h2>
-        <div class="meta">${esc(categoryLabel(r.category))} · Fiche du ${fmtDate(r.date_iso)} ${isBatchRecipe(r)?'<span class="badge-batch">🧪 préparation en lot</span>':''}</div>
+        <div class="meta">${esc(categoryLabel(r.category))} · Fiche du ${fmtDate(r.date_iso)} ${isBatchRecipe(r)?('<span class="badge-batch">' + ico('flask',13) + ' préparation en lot</span>'):''}</div>
       </div>
       <div>${pillFor(status)}</div>
     </div>
@@ -28060,7 +28127,7 @@ function suggestedOrderQty(p){
 function viewOrders(){
   const low = state.products.filter(p=>isLowStock(p));
   if(!low.length){
-    return `<div class="card empty"><div class="big">🛒</div><h3>Aucune suggestion de commande</h3><p>Aucun produit n’est actuellement sous son seuil de stock bas. Définissez des seuils depuis la fiche produit ou la vue Stock pour activer les suggestions.</p></div>`;
+    return `<div class="card empty"><div class="big">${ico('cart', 40)}</div><h3>Aucune suggestion de commande</h3><p>Aucun produit n’est actuellement sous son seuil de stock bas. Définissez des seuils depuis la fiche produit ou la vue Stock pour activer les suggestions.</p></div>`;
   }
   const bySupplier = new Map();
   low.forEach(p=>{
@@ -28665,7 +28732,7 @@ document.addEventListener('click', function(e){
     const label = 'Nouvelle activité';
     const base = 'activite'; let id = base, n = 2;
     while(categories().some(c=>c.id===id)) id = base + '-' + (n++);
-    state.settings.categories.push({id, label, ico:'▤', recipes_label:'Fiches '+label.toLowerCase(), has_catalogue:false, catalogue_label:''});
+    state.settings.categories.push({id, label, ico:'clipboard', recipes_label:'Fiches '+label.toLowerCase(), has_catalogue:false, catalogue_label:''});
     showOnboarding(2); return;
   }
   if(a==='onb-remove-cat'){

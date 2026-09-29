@@ -22,11 +22,11 @@ async function boot(){
     return;
   }
 
+  // Un établissement qui s'inscrit démarre SUR SA PROPRE PAGE BLANCHE. Lui
+  // installer les produits d'un autre restaurant l'obligerait à tout effacer
+  // avant de commencer — et alourdirait le fichier de 534 Ko pour rien.
   const premierLancement = !loaded;
-  state = loaded || clone(SEED);
-  if(loaded && (!state.meta || state.meta.seed_version !== SEED.meta.seed_version)){
-    mergeSeedUpdate();
-  }
+  state = loaded || { meta:{}, settings:{}, products:[], recipes:[], inventories:[], salesLog:[] };
   migrateState();
   // Le nom saisi à la création de l'établissement fait foi.
   if(sbCompany && sbCompany.name) state.settings.establishment_name = sbCompany.name;

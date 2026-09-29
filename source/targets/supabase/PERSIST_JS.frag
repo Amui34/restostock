@@ -390,3 +390,43 @@ function exportBackup(){
   document.body.appendChild(a); a.click(); a.remove();
   setTimeout(()=>URL.revokeObjectURL(url), 2000);
 }
+
+/* Reprendre un catalogue existant : celui d'un tableur converti, une sauvegarde
+   d'un autre espace, ou un jeu d'essai pour découvrir l'outil avant de saisir
+   quoi que ce soit. L'import REMPLACE le contenu de l'espace — doSave() s'occupe
+   des suppressions en comparant à ce que la base contient déjà. */
+function importBackup(){
+  if(!canEditSettings()){ alert('Seul le patron peut importer une sauvegarde.'); return; }
+  const input = document.createElement('input');
+  input.type = 'file';
+  input.accept = 'application/json,.json';
+  input.onchange = ()=>{
+    const f = input.files && input.files[0];
+    if(!f) return;
+    const reader = new FileReader();
+    reader.onload = async ()=>{
+      let st;
+      try{ st = JSON.parse(reader.result); }
+      catch(e){ alert('Ce fichier n’est pas lisible — il doit s’agir d’un fichier .json exporté depuis RestoStock.'); return; }
+      if(!st || !Array.isArray(st.products) || !Array.isArray(st.recipes)){
+        alert('Ce fichier ne ressemble pas à une sauvegarde RestoStock (ni produits ni fiches).'); return;
+      }
+      const quoi = `${st.products.length} produit${st.products.length>1?'s':''} et ${st.recipes.length} fiche${st.recipes.length>1?'s':''}`;
+      const vide = !(state.products||[]).length && !(state.recipes||[]).length;
+      const ok = confirm(vide
+        ? `Installer ${quoi} dans l’espace « ${sbCompany.name} » ?`
+        : `REMPLACER tout le contenu de « ${sbCompany.name} » par ${quoi} ?\n\n`
+          + `Les produits, fiches et inventaires actuels seront effacés.\n`
+          + `Exportez d’abord une sauvegarde si vous souhaitez les conserver.`);
+      if(!ok) return;
+      state = st;
+      migrateState();
+      setSaveIndicator('pending','Installation des données…');
+      await doSave();
+      render();
+      alert(`${quoi} — installé.`);
+    };
+    reader.readAsText(f);
+  };
+  input.click();
+}

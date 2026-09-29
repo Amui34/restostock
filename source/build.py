@@ -65,7 +65,11 @@ def assemble(target):
         core = core.replace(marker + "\n", content + "\n" if content else "")
         core = core.replace(marker, content)
 
-    core = core.replace("__SEED_JSON__", seed_json())
+    # Les données de départ n'ont de sens que pour les versions mono-poste.
+    # En ligne, chaque établissement remplit son espace lui-même : embarquer le
+    # catalogue d'un restaurant dans le fichier servi à tous serait à la fois
+    # inutile, encombrant (534 Ko) et indiscret.
+    core = core.replace("__SEED_JSON__", "{}" if target == "supabase" else seed_json())
 
     if target == "supabase":
         conf = {}
@@ -90,6 +94,12 @@ def copy_landing(check_only):
     if not LANDING_SRC.exists():
         return
     html = LANDING_SRC.read_text(encoding="utf-8")
+    # Les captures de la vitrine voyagent avec elle.
+    img_src, img_out = HERE / "img", OUT_DIR / "img"
+    if img_src.is_dir() and not check_only:
+        img_out.mkdir(parents=True, exist_ok=True)
+        for f in img_src.glob("*.png"):
+            (img_out / f.name).write_bytes(f.read_bytes())
     out = OUT_DIR / LANDING_OUT
     if check_only:
         etat = "identique" if out.exists() and out.read_text(encoding="utf-8") == html else "DIFFÉRENT"

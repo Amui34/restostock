@@ -6,3 +6,4 @@
     return;
   }
   if(a==='export-backup') return exportBackup();
+  if(a==='import-backup') return importBackup();
