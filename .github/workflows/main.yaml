@@ -40,8 +40,11 @@ jobs:
             echo "→ Réseau partagé du proxy (no-op s'il existe déjà)"
             docker network create web 2>/dev/null || true
 
-            echo "→ Build & (re)démarrage du conteneur Grimoire ($COMPOSE_FILE)"
-            docker compose -f "$COMPOSE_FILE" up -d --build
+            echo "→ Build & (re)démarrage du conteneur RestoStock ($COMPOSE_FILE)"
+            # --remove-orphans : le service s'appelait « grimoire » avant d'être
+            # renommé « restostock ». Sans ça l'ancien conteneur survivrait à côté
+            # du nouveau, tous deux répondant sur le même réseau.
+            docker compose -f "$COMPOSE_FILE" up -d --build --remove-orphans
 
             echo "→ Nettoyage des images inutilisées"
             docker image prune -f

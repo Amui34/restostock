@@ -1,23 +1,36 @@
 # =============================================================================
-# Grimoire Bivouak — derrière le proxy partagé (amui-proxy)
-# Aucun port publié : le proxy Caddy joint l'app via l'alias « grimoire-app »
-# sur le réseau Docker « web ».
-#
-# NB : le routage du domaine se fera plus tard dans amui-proxy (bloc Caddyfile
-# + variable) une fois le nom de domaine choisi.
+# RestoStock — derrière le proxy partagé (amui-proxy)
+# Aucun port publié : le proxy Caddy joint l'app par son alias réseau.
 #
 #   docker compose -f compose.proxy.yaml up -d --build
+#
+# ---------------------------------------------------------------------------
+# DEUX RÉGLAGES CÔTÉ SERVEUR, si le proxy n'est pas configuré par défaut :
+#
+#   1. Le nom du réseau Docker partagé. Ici « web » par défaut. S'il porte un
+#      autre nom, ne pas modifier ce fichier : créer un .env à côté, avec
+#         PROXY_NETWORK=le-vrai-nom
+#      (sans ça, docker compose refuse de démarrer — « network declared as
+#      external, but could not be found » — et le proxy renvoie 502.)
+#
+#   2. Le nom par lequel le proxy appelle ce conteneur. Plusieurs alias sont
+#      déclarés ci-dessous pour qu'aucun choix raisonnable ne tombe à côté.
+#      « grimoire-app » est l'ancien nom du projet, conservé par compatibilité.
 # =============================================================================
 
 services:
-  grimoire:
+  restostock:
     build: .
     restart: unless-stopped
     networks:
       web:
         aliases:
+          - restostock
+          - restostock-app
+          - grimoire
           - grimoire-app
 
 networks:
   web:
     external: true
+    name: ${PROXY_NETWORK:-web}
