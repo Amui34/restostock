@@ -286,6 +286,12 @@ th .info-tip{ font-weight:600; }
 .metric-box{ background:var(--surface-2); border-radius:8px; padding:11px 13px; }
 .metric-box .l{ font-size:11px; text-transform:uppercase; letter-spacing:.05em; color:var(--ink-muted); }
 .metric-box .v{ font-family:var(--font-mono); font-size:18px; font-weight:600; margin-top:3px; font-variant-numeric:tabular-nums; }
+/* La chaîne du calcul des pertes, lue de gauche à droite comme une opération
+   posée. Les signes + − = sont portés par les intitulés : empilées sur
+   téléphone, les étapes restent dans l'ordre et le calcul reste lisible. */
+.chain-grid{ display:grid; grid-template-columns:repeat(5,1fr); gap:8px; }
+.chain-grid .metric-box:last-child{ background:none; border:1px solid var(--border); }
+@media (max-width: 880px){ .chain-grid{ grid-template-columns:1fr 1fr; } }
 /* Le food cost est le chiffre qui décide de garder ou de changer une recette :
    il mérite d'être lu d'un coup d'œil, et de porter lui-même sa couleur de santé,
    au lieu d'être noyé parmi cinq indicateurs de même poids. */
@@ -25994,6 +26000,9 @@ function navGroups(){
   {group:'Chaque mois', items:[
     {id:'inventory-list', label:'Inventaires', ico:'checklist'},
     {id:'sales', label:'Ventes du mois', ico:'receipt'},
+    // Dernier de son groupe parce qu'il vient après les deux autres dans le
+    // mois : on compte, on saisit les ventes, et seulement alors on contrôle.
+    {id:'losses', label:'Contrôle des pertes', ico:'gauge'},
   ]},
   {group:'Piloter', items:[
     {id:'dashboard', label:'Tableau de bord', ico:'gauge'},
@@ -26019,6 +26028,7 @@ const PAGE_META = {
   sales:['Ventes du service','Combien de fois chaque fiche a été vendue — l’appli en déduit ce qui sort du stock'],
   stock:['Niveaux de stock','Quantités actuelles, alertes de seuil bas et valeur du stock'],
   'inventory-list':['Inventaires','Sessions de comptage physique et écarts avec le stock théorique'],
+  losses:['Contrôle des pertes','Ce qui est sorti du stock sans être vendu, entre deux inventaires'],
   'inventory-detail':['Détail de l’inventaire',''],
   orders:['Suggestions de commande','Produits sous le seuil bas, regroupés par fournisseur, avec quantités et coûts suggérés'],
   'print-batch':['Impression groupée','Toutes les fiches techniques prêtes à imprimer'],
@@ -26095,6 +26105,7 @@ function render(){
     else if(ui.view==='sales') app.innerHTML = viewSales(actions);
     else if(ui.view==='stock') app.innerHTML = viewStock();
     else if(ui.view==='inventory-list') app.innerHTML = viewInventoryList();
+    else if(ui.view==='losses') app.innerHTML = viewLosses();
     else if(ui.view==='inventory-detail') app.innerHTML = viewInventoryDetail(ui.id, actions);
     else if(ui.view==='orders') app.innerHTML = viewOrders();
     else if(ui.view==='print-batch') app.innerHTML = viewPrintBatch(ui.id, actions);
@@ -27056,6 +27067,207 @@ function viewSales(actionsEl){
 
   ${detail}
   `;
+}
+
+/* ================= Contrôle des pertes =================
+   La raison d'être de l'outil : tout le reste — fiches, prix d'achat,
+   réceptions, inventaires — n'existe que pour rendre ce calcul possible.
+
+       perte = ce qui a réellement disparu du stock
+             − ce que les ventes auraient dû faire sortir
+
+   Les deux termes sont déjà enregistrés, et il n'y a rien à ressaisir. Un
+   inventaire validé porte, pour chaque produit, le stock théorique du moment
+   (`theoretical_qty` : le stock de début de période, plus les réceptions,
+   moins ce que les fiches vendues ont fait sortir) et ce qui a été compté dans
+   les rayons (`counted_qty`). L'écart entre les deux EST la perte : casse,
+   vol, surdosage, verre offert, erreur de comptage.
+
+   MAIS il ne vaut que si la chaîne est complète. Un mois où personne n'a saisi
+   les ventes produit un « écart » spectaculaire qui ne mesure rien d'autre que
+   l'oubli. Afficher ce chiffre sans le dire ferait prendre une négligence de
+   saisie pour du vol — c'est le pire service à rendre à un gérant. L'écran
+   compte donc les produits sans aucune sortie enregistrée et le signale avant
+   le chiffre, pas en note de bas de page. */
+
+function validatedInventories(){
+  return (state.inventories||[]).filter(i=>i.status==='validated')
+    .sort((a,b)=> (b.date||'').localeCompare(a.date||''));
+}
+/* L'inventaire validé qui précède, SUR LE MÊME PÉRIMÈTRE : c'est lui qui fixe le
+   début de la période. Comparer la cuisine au dernier comptage du bar donnerait
+   une période fantaisiste et des pertes inventées. */
+function previousInventory(inv){
+  return (state.inventories||[])
+    .filter(i=> i.status==='validated' && i.id!==inv.id
+             && i.category===inv.category && (i.zone||'all')===(inv.zone||'all')
+             && (i.date||'') < (inv.date||''))
+    .sort((a,b)=> (b.date||'').localeCompare(a.date||''))[0] || null;
+}
+// Bornes : on exclut le jour du comptage précédent (son écart d'inventaire
+// appartient à la période d'avant) et on inclut celui du comptage en cours.
+function movementsBetween(p, fromDate, toDate){
+  return (p.stock_movements||[]).filter(m=>{
+    const d = m.date || '';
+    if(toDate && d > toDate) return false;
+    if(fromDate && d <= fromDate) return false;
+    return true;
+  });
+}
+function productUsedInRecipes(p){
+  return state.recipes.some(r=>(r.ingredients||[]).some(i=>i.product_id===p.id));
+}
+function lossLine(inv, c, prev){
+  const p = productById(c.product_id);
+  if(!p || c.counted_qty==null) return null;
+  let recu=0, sorti=0, ajust=0;
+  movementsBetween(p, prev ? prev.date : null, inv.date).forEach(m=>{
+    if(m.type==='reception')        recu  += m.qty;
+    else if(m.type==='vente')       sorti += -m.qty;    // enregistrée en négatif
+    else if(m.type==='ajustement')  ajust += m.qty;
+  });
+  // Le stock de début se retrouve en remontant la chaîne depuis le stock
+  // théorique, plutôt qu'en relisant le comptage précédent : c'est vrai même
+  // si un produit a été ajouté en cours de période.
+  const debut  = round3(c.theoretical_qty - recu + sorti - ajust);
+  const manque = round3(c.theoretical_qty - c.counted_qty);   // > 0 = il manque
+  return {
+    p, debut, recu:round3(recu), sorti:round3(sorti), ajust:round3(ajust),
+    prevu: c.theoretical_qty, compte: c.counted_qty, manque,
+    valeur: valueForQty(p, manque),
+    sortiVal: valueForQty(p, sorti),
+    // Un produit qui entre dans des fiches mais n'a aucune sortie sur la
+    // période : ses ventes n'ont pas été saisies, son « écart » ne veut rien dire.
+    ventesManquantes: sorti <= 1e-9 && productUsedInRecipes(p),
+  };
+}
+function lossReport(inv){
+  const prev  = previousInventory(inv);
+  const lines = (inv.counts||[]).map(c=>lossLine(inv, c, prev)).filter(Boolean);
+  const tot = {debut:0, recu:0, sorti:0, prevu:0, compte:0, valeur:0, sortiVal:0};
+  lines.forEach(l=>{
+    tot.debut += l.debut; tot.recu += l.recu; tot.sorti += l.sorti;
+    tot.prevu += l.prevu; tot.compte += l.compte;
+    tot.valeur += l.valeur; tot.sortiVal += l.sortiVal;
+  });
+  lines.sort((a,b)=> Math.abs(b.valeur) - Math.abs(a.valeur));
+  return { inv, prev, lines, tot,
+    sansVentes: lines.filter(l=>l.ventesManquantes).length,
+    // Taux de perte : la part de ce qui est sorti du stock sans être vendu.
+    // Plus parlant qu'un montant brut, qui dépend de la taille du mois.
+    taux: tot.sortiVal > 0 ? tot.valeur / tot.sortiVal : null };
+}
+
+function viewLosses(){
+  const invs = validatedInventories();
+  if(!invs.length){
+    return `<div class="card empty">
+      <div class="big">${ico('gauge', 40)}</div>
+      <h3>Pas encore de contrôle possible</h3>
+      <p>Les pertes se mesurent entre deux inventaires. Dès qu’un inventaire est
+         validé, le calcul apparaît ici — vous n’aurez rien à ressaisir.</p>
+      <div style="margin-top:14px;"><button class="btn btn-primary" data-nav="inventory-list">Aller aux inventaires</button></div>
+    </div>`;
+  }
+  const inv = invs.find(i=>i.id===ui.lossInv) || invs[0];
+  const rep = lossReport(inv);
+  const t   = rep.tot;
+  const u   = l => esc(stockUnitLabel(l.p));
+
+  const periode = rep.prev
+    ? `du ${fmtDate(rep.prev.date)} au ${fmtDate(inv.date)}`
+    : `jusqu’au ${fmtDate(inv.date)} (premier inventaire de ce périmètre)`;
+
+  const selecteur = invs.length > 1 ? `
+    <div class="field" style="max-width:420px;">
+      <label>Inventaire de fin de période</label>
+      <select data-onchange="lossInv">
+        ${invs.map(i=>`<option value="${i.id}"${i.id===inv.id?' selected':''}>${fmtDate(i.date)} — ${esc(categoryLabel(i.category))}${i.zone&&i.zone!=='all'?' · '+esc(i.zone):''}</option>`).join('')}
+      </select>
+    </div>` : '';
+
+  // Le chiffre est une perte quand il manque de la marchandise (valeur > 0).
+  const perte   = t.valeur > 0;
+  const heroCls = !rep.lines.length ? 'hero-neutral'
+                : rep.sansVentes ? 'hero-neutral'
+                : perte && rep.taux!=null && rep.taux > 0.05 ? 'hero-critical'
+                : perte ? 'hero-warning' : 'hero-good';
+
+  const alerte = rep.sansVentes ? `
+    <div class="card" style="padding:14px;border-left:3px solid var(--warning);">
+      <div style="display:flex;gap:10px;align-items:flex-start;">
+        <span style="color:var(--warning);flex:none;">${ico('alert', 20)}</span>
+        <div>
+          <strong>Ce chiffre n’est pas encore une perte.</strong>
+          <div class="hint" style="margin-top:4px;">
+            ${rep.sansVentes} produit${rep.sansVentes>1?'s entrent':' entre'} dans vos fiches mais
+            ${rep.sansVentes>1?'n’ont':'n’a'} enregistré aucune sortie sur la période : les ventes
+            n’ont pas été saisies. L’écart mesuré est alors de la consommation normale, pas de la perte.
+            Saisissez les ventes du mois, puis revenez ici.
+          </div>
+          <div style="margin-top:9px;"><button class="btn btn-sm btn-primary" data-nav="sales">Saisir les ventes</button></div>
+        </div>
+      </div>
+    </div>` : '';
+
+  const chaine = `
+    <div class="chain-grid" style="margin-top:14px;">
+      <div class="metric-box"><div class="l">Stock de début</div><div class="v">${fmtMoney(valueTotalOf(rep.lines,'debut'))}</div></div>
+      <div class="metric-box"><div class="l">+ Réceptions</div><div class="v">${fmtMoney(valueTotalOf(rep.lines,'recu'))}</div></div>
+      <div class="metric-box"><div class="l">− Sorties des ventes</div><div class="v">${fmtMoney(t.sortiVal)}</div></div>
+      <div class="metric-box"><div class="l">= Stock prévu</div><div class="v">${fmtMoney(valueTotalOf(rep.lines,'prevu'))}</div></div>
+      <div class="metric-box"><div class="l">Stock compté</div><div class="v">${fmtMoney(valueTotalOf(rep.lines,'compte'))}</div></div>
+    </div>`;
+
+  const lignes = rep.lines.filter(l=>Math.abs(l.manque) > 1e-9);
+  const table = lignes.length ? `
+    <h3 style="margin:22px 0 8px;font-size:14px;color:var(--ink-faint);">Par produit — les plus coûteux en premier</h3>
+    <div class="tablewrap"><table>
+      <thead><tr>
+        <th>Produit</th>
+        <th class="num">Prévu</th><th class="num">Compté</th>
+        <th class="num">Écart</th><th class="num">Valeur</th>
+      </tr></thead>
+      <tbody>${lignes.map(l=>`
+        <tr>
+          <td><a href="#" data-goto-product="${l.p.id}">${esc(l.p.name)}</a>
+            <div class="hint">début ${fmtNum(l.debut,1)} · reçu ${fmtNum(l.recu,1)} · sorti ${fmtNum(l.sorti,1)} ${u(l)}${
+              l.ventesManquantes ? ` · <span style="color:var(--warning);">aucune vente saisie</span>` : ''}</div></td>
+          <td class="num">${fmtNum(l.prevu,1)}</td>
+          <td class="num">${fmtNum(l.compte,1)}</td>
+          <td class="num"><span class="trend ${l.manque>0.0001?'up':l.manque<-0.0001?'down':'flat'}">${l.manque>0?'−':'+'}${fmtNum(Math.abs(l.manque),1)}</span></td>
+          <td class="num">${fmtMoney(Math.abs(l.valeur))}</td>
+        </tr>`).join('')}</tbody>
+    </table></div>
+    <div class="hint" style="margin-top:8px;">Chaque ligne est exprimée dans l’unité de son produit — des centilitres pour
+      un alcool, des grammes pour une denrée. Un écart négatif veut dire qu’il en manque par rapport au prévu.</div>`
+    : `<div class="card empty" style="margin-top:16px;"><div class="big">${ico('check', 40)}</div>
+        <h3>Aucun écart sur la période</h3>
+        <p>Tout ce qui est sorti du stock correspond à ce qui a été vendu.</p></div>`;
+
+  return `
+  ${selecteur}
+  <div class="hint" style="margin:${selecteur?'2px':'0'} 0 12px;">Période ${periode} · ${esc(categoryLabel(inv.category))}${inv.zone&&inv.zone!=='all'?' · '+esc(inv.zone):''}</div>
+  ${alerte}
+  <div class="metric-hero ${heroCls}" style="margin-top:${alerte?'14px':'0'};">
+    <div>
+      <div class="l">${perte ? 'Perte sur la période' : 'Excédent sur la période'}</div>
+      <div class="v">${fmtMoney(Math.abs(t.valeur))}</div>
+    </div>
+    <div class="s">${rep.taux!=null
+      ? `soit ${fmtNum(Math.abs(rep.taux)*100,1)} % de ce qui est sorti du stock`
+      : 'aucune sortie enregistrée sur la période'}</div>
+  </div>
+  ${chaine}
+  ${table}
+  `;
+}
+// Valorise un champ de quantité sur toutes les lignes — chaque produit a son
+// propre prix, un total de quantités n'aurait aucun sens (des cl + des grammes).
+function valueTotalOf(lines, champ){
+  let s = 0;
+  lines.forEach(l=>{ s += valueForQty(l.p, l[champ]) || 0; });
+  return s;
 }
 
 /* ================= À vérifier =================
@@ -29031,6 +29243,7 @@ document.addEventListener('change', function(e){
     });
     return;
   }
+  if(t.matches('[data-onchange="lossInv"]')){ ui.lossInv = t.value; render(); return; }
   if(t.matches('[data-onchange="catFilter"]')){ ui.catFilter = t.value; render(); return; }
   if(t.matches('[data-onchange="fournisseurFilter"]')){ ui.fournisseurFilter = t.value; render(); return; }
   if(t.matches('[data-onchange="familyFilter"]')){ ui.familyFilter = t.value; render(); return; }
