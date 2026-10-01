@@ -14,7 +14,15 @@
 :80 {
 	encode zstd gzip
 	root * /srv
-	# Repli sur index.html (la version « équipe » servie à la racine).
-	try_files {path} /index.html
+
+	# L'ordre compte, et le deuxième essai est indispensable :
+	#   /                → /srv/index.html          (la vitrine)
+	#   /app/            → /srv/app/index.html      (l'application)
+	#   /img/x.png       → le fichier
+	#   n'importe quoi   → la vitrine
+	# Sans « {path}/index.html », une adresse en dossier comme /app/ ne
+	# correspond à aucun fichier et tombe sur le repli : l'application
+	# renvoyait la page d'accueil.
+	try_files {path} {path}/index.html /index.html
 	file_server
 }
