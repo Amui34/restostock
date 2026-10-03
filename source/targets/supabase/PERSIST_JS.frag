@@ -269,9 +269,15 @@ function companyPickHTML(list){
     <button type="button" class="btn btn-ghost" style="width:100%;margin-top:18px;" data-action="sign-out">Changer de compte</button>`);
 }
 
+// Le nom saisi à l'inscription vit dans le compte ; c'est lui qu'on inscrit sur
+// la ligne d'équipe, sinon le responsable ne verrait qu'une suite d'identifiants.
+function currentUserName(){
+  const m = sbUser && sbUser.user_metadata;
+  return (m && (m.full_name || m.name)) || '';
+}
 async function ensureSignedIn(){
   const { data } = await sbClient.auth.getSession();
-  if(data && data.session) return true;
+  if(data && data.session){ sbUser = data.session.user; return true; }
   return new Promise(resolve=>{
     let mode = 'signin';
     const render = msg => {
@@ -296,6 +302,7 @@ async function ensureSignedIn(){
           render('Compte créé. Confirmez votre adresse par e-mail, puis connectez-vous.');
           return;
         }
+        sbUser = (res.data && res.data.user) || null;
         document.getElementById('overlay-root').innerHTML = '';
         resolve(true);
       });
@@ -347,13 +354,14 @@ async function ensureCompany(){
         const nom  = String(fd.get('newname')||'').trim();
         const code = String(fd.get('code')||'').trim();
         try{
+          const qui = currentUserName();
           if(choix === 'create'){
             if(!nom){ render('Donnez un nom à votre établissement.'); return; }
-            const { error } = await sbClient.rpc('create_company', { company_name: nom });
+            const { error } = await sbClient.rpc('create_company', { company_name: nom, who: qui });
             if(error) throw error;
           } else {
             if(!code){ render('Saisissez le code reçu.'); return; }
-            const { error } = await sbClient.rpc('join_company', { code });
+            const { error } = await sbClient.rpc('join_company', { code, who: qui });
             if(error) throw error;
           }
           const maj = await myCompanies();
@@ -372,6 +380,70 @@ async function ensureCompany(){
 
 function normCompany(c){
   return { id: c.company_id, name: c.company_name, role: c.role, join_code: c.join_code };
+}
+
+/* ---- L'équipe ----
+   La base ne laisse voir que les membres de son propre établissement, et ne
+   laisse que le responsable toucher aux rôles. Ce qui suit ne fait qu'éviter
+   de proposer un bouton qui serait de toute façon refusé.
+
+   Les adresses e-mail ne sont volontairement pas lisibles ici : `members` ne
+   porte qu'un nom, et la table des comptes reste hors de portée. Un patron n'a
+   pas besoin de l'adresse de son commis pour lui donner un rôle. */
+function hasTeam(){ return true; }
+function teamMembers(){ return sbMembers; }
+function teamJoinCode(){ return sbCompany ? sbCompany.join_code : null; }
+function myUserId(){ return sbUser ? sbUser.id : null; }
+
+async function loadTeam(){
+  const { data, error } = await sbClient
+    .from('members')
+    .select('user_id, role, full_name, created_at')
+    .eq('company_id', sbCompany.id)
+    .order('created_at');
+  if(error) throw error;
+  sbMembers = data || [];
+}
+// L'écran demande l'équipe la première fois qu'il s'affiche, puis se redessine.
+function ensureTeamLoaded(){
+  if(sbMembers !== null) return;
+  sbMembers = [];                       // évite de relancer pendant le chargement
+  loadTeam().then(render).catch(err=>{
+    console.error(err);
+    setSaveIndicator('error','Équipe indisponible');
+  });
+}
+// Un établissement sans responsable ne peut plus ni changer un rôle ni modifier
+// ses réglages : plus personne n'a le droit, et la base ne fera pas d'exception.
+function lastPatron(uid){
+  const patrons = (sbMembers||[]).filter(m=>m.role==='patron');
+  return patrons.length <= 1 && patrons.some(m=>m.user_id===uid);
+}
+async function setMemberRole(uid, role){
+  if(lastPatron(uid)){
+    alert('Vous êtes le seul responsable. Nommez d’abord quelqu’un d’autre responsable, sinon plus personne ne pourra gérer l’équipe.');
+    return;
+  }
+  const { error } = await sbClient.from('members')
+    .update({ role }).eq('company_id', sbCompany.id).eq('user_id', uid);
+  if(error){ alert(error.message); return; }
+  await loadTeam();
+  if(uid === myUserId()){ location.reload(); return; }   // nos propres droits ont changé
+  render();
+}
+async function removeMember(uid){
+  if(lastPatron(uid)){
+    alert('Vous êtes le seul responsable : vous ne pouvez pas vous retirer de l’équipe.');
+    return;
+  }
+  const m = (sbMembers||[]).find(x=>x.user_id===uid);
+  const qui = (m && m.full_name) ? m.full_name : 'cette personne';
+  if(!confirm(`Retirer ${qui} de l’équipe ?\n\nSon compte reste valable, mais elle n’aura plus accès aux données de ${sbCompany.name}.`)) return;
+  const { error } = await sbClient.from('members')
+    .delete().eq('company_id', sbCompany.id).eq('user_id', uid);
+  if(error){ alert(error.message); return; }
+  await loadTeam();
+  render();
 }
 
 /* Ce que le rôle autorise, côté interface. La base applique exactement les

@@ -120,6 +120,14 @@ h1,h2,h3,h4{ font-family:var(--font-display); font-weight:600; text-wrap:balance
   border-radius:0 3px 3px 0; background:var(--accent);
 }
 .nav button .ico{ width:18px; display:grid; place-items:center; opacity:.9; flex:none; }
+/* Le repli « Plus… ». Volontairement plus discret que les entrées réelles : il
+   ouvre une réserve, il n'est pas lui-même une destination. */
+.nav-more{ margin-top:18px; color:var(--ink-faint) !important; font-size:13.5px !important; }
+.nav-more .ico{ transition:transform .15s; }
+.nav-more.open .ico{ transform:rotate(180deg); }
+.nav-more .count{ margin-left:auto; font-family:var(--font-mono); font-size:11.5px; color:var(--warning); }
+.nav-more-items{ display:flex; flex-direction:column; gap:2px; }
+.nav-more-items[hidden]{ display:none; }
 .ic{ display:block; }
 /* Une icône posée dans une phrase doit suivre la ligne, pas flotter. */
 .ic-inline{ vertical-align:-3px; margin-right:6px; opacity:.75; }
@@ -422,12 +430,18 @@ let ui = { view:'dashboard', id:null, search:'', catFilter:'all', sortKey:null, 
   // Réception du jour : saisie en cours, non enregistrée tant qu'on n'a pas validé.
   recDate:null, recCat:'all', recSupplier:'all', recSearch:'', recDraft:{},
   salesDate:null, salesCat:'all', salesSearch:'', salesDraft:{},
-  invGroupBy:'auto' };
+  invGroupBy:'auto',
+  // Le repli « Plus… » du menu. Volontairement non mémorisé : chaque ouverture
+  // de l'appli repart du menu court, qui est celui du service.
+  navMore:false,
+  lossInv:null };
 const SUPABASE_URL = 'https://fimkglvsbwxyxevlxiny.supabase.co';
 const SUPABASE_ANON_KEY = 'sb_publishable_zBuzijxpYrGgWIWQXvG3FQ_qzpK7JVh';
 const CACHE_PREFIX = 'restostock_cache_';
 let sbClient = null;
 let sbCompany = null;
+let sbUser = null;
+let sbMembers = null;      // null = l'équipe n'a pas encore été chargée
 let lastSnapshot = {};
 let sbReadOnly = false;
 let sbIgnoreUntil = 0;
@@ -525,6 +539,7 @@ const ICONS = {
   doc:       '<path d="M13 3H7a1 1 0 0 0-1 1v16a1 1 0 0 0 1 1h10a1 1 0 0 0 1-1V8l-5-5Z"/><path d="M13 3v5h5"/><path d="M9 13h6M9 17h4"/>',
   download:  '<path d="M12 3.5v11"/><path d="m7.5 10.5 4.5 4.5 4.5-4.5"/><path d="M4.5 19.5h15"/>',
   upload:    '<path d="M12 15.5v-11"/><path d="m7.5 8.5 4.5-4.5 4.5 4.5"/><path d="M4.5 19.5h15"/>',
+  chevron:   '<path d="m8 10 4 4 4-4"/>',
 };
 function ico(name, size){
   const d = ICONS[name];
@@ -921,9 +936,15 @@ function companyPickHTML(list){
     <button type="button" class="btn btn-ghost" style="width:100%;margin-top:18px;" data-action="sign-out">Changer de compte</button>`);
 }
 
+// Le nom saisi à l'inscription vit dans le compte ; c'est lui qu'on inscrit sur
+// la ligne d'équipe, sinon le responsable ne verrait qu'une suite d'identifiants.
+function currentUserName(){
+  const m = sbUser && sbUser.user_metadata;
+  return (m && (m.full_name || m.name)) || '';
+}
 async function ensureSignedIn(){
   const { data } = await sbClient.auth.getSession();
-  if(data && data.session) return true;
+  if(data && data.session){ sbUser = data.session.user; return true; }
   return new Promise(resolve=>{
     let mode = 'signin';
     const render = msg => {
@@ -948,6 +969,7 @@ async function ensureSignedIn(){
           render('Compte créé. Confirmez votre adresse par e-mail, puis connectez-vous.');
           return;
         }
+        sbUser = (res.data && res.data.user) || null;
         document.getElementById('overlay-root').innerHTML = '';
         resolve(true);
       });
@@ -999,13 +1021,14 @@ async function ensureCompany(){
         const nom  = String(fd.get('newname')||'').trim();
         const code = String(fd.get('code')||'').trim();
         try{
+          const qui = currentUserName();
           if(choix === 'create'){
             if(!nom){ render('Donnez un nom à votre établissement.'); return; }
-            const { error } = await sbClient.rpc('create_company', { company_name: nom });
+            const { error } = await sbClient.rpc('create_company', { company_name: nom, who: qui });
             if(error) throw error;
           } else {
             if(!code){ render('Saisissez le code reçu.'); return; }
-            const { error } = await sbClient.rpc('join_company', { code });
+            const { error } = await sbClient.rpc('join_company', { code, who: qui });
             if(error) throw error;
           }
           const maj = await myCompanies();
@@ -1024,6 +1047,70 @@ async function ensureCompany(){
 
 function normCompany(c){
   return { id: c.company_id, name: c.company_name, role: c.role, join_code: c.join_code };
+}
+
+/* ---- L'équipe ----
+   La base ne laisse voir que les membres de son propre établissement, et ne
+   laisse que le responsable toucher aux rôles. Ce qui suit ne fait qu'éviter
+   de proposer un bouton qui serait de toute façon refusé.
+
+   Les adresses e-mail ne sont volontairement pas lisibles ici : `members` ne
+   porte qu'un nom, et la table des comptes reste hors de portée. Un patron n'a
+   pas besoin de l'adresse de son commis pour lui donner un rôle. */
+function hasTeam(){ return true; }
+function teamMembers(){ return sbMembers; }
+function teamJoinCode(){ return sbCompany ? sbCompany.join_code : null; }
+function myUserId(){ return sbUser ? sbUser.id : null; }
+
+async function loadTeam(){
+  const { data, error } = await sbClient
+    .from('members')
+    .select('user_id, role, full_name, created_at')
+    .eq('company_id', sbCompany.id)
+    .order('created_at');
+  if(error) throw error;
+  sbMembers = data || [];
+}
+// L'écran demande l'équipe la première fois qu'il s'affiche, puis se redessine.
+function ensureTeamLoaded(){
+  if(sbMembers !== null) return;
+  sbMembers = [];                       // évite de relancer pendant le chargement
+  loadTeam().then(render).catch(err=>{
+    console.error(err);
+    setSaveIndicator('error','Équipe indisponible');
+  });
+}
+// Un établissement sans responsable ne peut plus ni changer un rôle ni modifier
+// ses réglages : plus personne n'a le droit, et la base ne fera pas d'exception.
+function lastPatron(uid){
+  const patrons = (sbMembers||[]).filter(m=>m.role==='patron');
+  return patrons.length <= 1 && patrons.some(m=>m.user_id===uid);
+}
+async function setMemberRole(uid, role){
+  if(lastPatron(uid)){
+    alert('Vous êtes le seul responsable. Nommez d’abord quelqu’un d’autre responsable, sinon plus personne ne pourra gérer l’équipe.');
+    return;
+  }
+  const { error } = await sbClient.from('members')
+    .update({ role }).eq('company_id', sbCompany.id).eq('user_id', uid);
+  if(error){ alert(error.message); return; }
+  await loadTeam();
+  if(uid === myUserId()){ location.reload(); return; }   // nos propres droits ont changé
+  render();
+}
+async function removeMember(uid){
+  if(lastPatron(uid)){
+    alert('Vous êtes le seul responsable : vous ne pouvez pas vous retirer de l’équipe.');
+    return;
+  }
+  const m = (sbMembers||[]).find(x=>x.user_id===uid);
+  const qui = (m && m.full_name) ? m.full_name : 'cette personne';
+  if(!confirm(`Retirer ${qui} de l’équipe ?\n\nSon compte reste valable, mais elle n’aura plus accès aux données de ${sbCompany.name}.`)) return;
+  const { error } = await sbClient.from('members')
+    .delete().eq('company_id', sbCompany.id).eq('user_id', uid);
+  if(error){ alert(error.message); return; }
+  await loadTeam();
+  render();
 }
 
 /* Ce que le rôle autorise, côté interface. La base applique exactement les
@@ -1628,14 +1715,20 @@ function navGroups(){
   ]},
   {group:'Piloter', items:[
     {id:'dashboard', label:'Tableau de bord', ico:'gauge'},
-    {id:'margins', label:'Marges', ico:'chart'},
     {id:'stock', label:'Stock & commandes', ico:'grid'},
-    {id:'history', label:'Historique', ico:'history'},
-  ]},
-  {group:'Données', items:[
     {id:'products', label:'Produits & prix', ico:'tag'},
+  ]},
+  /* Tout ce qu'on ouvre quelques fois par an se replie. Ces écrans ne sont pas
+     moins utiles — ils sont moins fréquents, et c'est différent : les laisser
+     au même niveau que « Réception du jour » obligeait à relire quinze lignes
+     pour en trouver deux. Le repli s'ouvre tout seul quand on s'y trouve, et
+     porte le compteur « À vérifier » pour qu'un rappel ne disparaisse jamais
+     derrière un pli. */
+  {group:'Plus', secondary:true, items:[
+    {id:'margins', label:'Marges', ico:'chart'},
     {id:'suppliers', label:'Fournisseurs', ico:'truck'},
-    ...(reviewTotal() ? [{id:'review', label:'À vérifier ('+reviewTotal()+')', ico:'alert'}] : []),
+    {id:'history', label:'Historique', ico:'history'},
+    ...(reviewTotal() ? [{id:'review', label:'À vérifier', ico:'alert', count:reviewTotal()}] : []),
     {id:'settings', label:'Réglages', ico:'gear'},
   ]},
   ];
@@ -1660,10 +1753,29 @@ const PAGE_META = {
 
 function renderNav(){
   const nav = document.getElementById('nav');
-  nav.innerHTML = navGroups().map(g => `
+  const groups = navGroups();
+  const plus = groups.find(g=>g.secondary);
+  const bouton = it => `<button data-nav="${it.id}" class="${ui.view===it.id?'active':''}">`
+    + `<span class="ico">${ico(it.ico)}</span>${esc(it.label)}`
+    + `${it.count ? `<span class="count">${it.count}</span>` : ''}</button>`;
+
+  // Replié sauf si on l'a ouvert, ou si l'écran courant s'y trouve : sans ça,
+  // cliquer sur « Réglages » refermerait le pli sous ses propres pieds et on ne
+  // saurait plus où l'on est.
+  const dedans = plus && plus.items.some(it=>it.id===ui.view);
+  const ouvert = ui.navMore || dedans;
+  const enAttente = plus ? plus.items.reduce((n,it)=>n+(it.count||0), 0) : 0;
+
+  nav.innerHTML = groups.filter(g=>!g.secondary).map(g => `
     <div class="nav-group-label">${g.group}</div>
-    ${g.items.map(it => `<button data-nav="${it.id}" class="${ui.view===it.id?'active':''}"><span class="ico">${ico(it.ico)}</span>${it.label}</button>`).join('')}
-  `).join('');
+    ${g.items.map(bouton).join('')}
+  `).join('')
+  + (plus && plus.items.length ? `
+    <button class="nav-more${ouvert?' open':''}" data-action="toggle-nav-more" aria-expanded="${ouvert}">
+      <span class="ico">${ico('chevron')}</span>Plus
+      ${!ouvert && enAttente ? `<span class="count">${enAttente}</span>` : ''}
+    </button>
+    <div class="nav-more-items"${ouvert?'':' hidden'}>${plus.items.map(bouton).join('')}</div>` : '');
 }
 
 /* Chaque écran a sa propre adresse (#produits, #inventaires…), pour trois raisons
@@ -4520,6 +4632,7 @@ document.addEventListener('click', function(e){
   }
   if(a==='export-backup') return exportBackup();
   if(a==='import-backup') return importBackup();
+  if(a==='toggle-nav-more'){ ui.navMore = !ui.navMore; renderNav(); return; }
   if(a==='view-atrisk'){ ui.marginFilter='atRisk'; setView('margins'); return; }
   if(a==='reset-margin-filter'){ ui.marginFilter='all'; render(); return; }
   if(a==='new-product') return modalNewProduct();
