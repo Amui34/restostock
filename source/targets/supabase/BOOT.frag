@@ -7,6 +7,11 @@ async function boot(){
   }
   sbClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
+  // Posé avant toute autre chose : quelqu'un qui arrive par le lien « mot de
+  // passe oublié » doit tomber sur le choix du nouveau mot de passe, pas sur
+  // l'application — il entrerait sans jamais avoir pu le changer.
+  watchPasswordRecovery();
+
   await ensureSignedIn();     // qui êtes-vous ?
   await ensureCompany();      // dans quel établissement ?
 

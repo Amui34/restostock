@@ -218,6 +218,22 @@ function authMessage(error){
 
 function signInHTML(mode, message){
   const inscription = mode === 'signup';
+  const oubli = mode === 'forgot';
+
+  if(oubli){
+    return authShellHTML(`
+      <form id="auth-form">
+        <h2 style="font-family:var(--font-display);font-size:23px;margin-bottom:6px;">Mot de passe oublié</h2>
+        <p style="color:var(--ink-muted);margin-bottom:20px;font-size:14.5px;">
+          Saisissez votre adresse : vous recevrez un lien pour en choisir un nouveau.</p>
+        <div class="field"><label>Adresse e-mail</label>
+          <input type="email" name="email" autocomplete="username" required></div>
+        ${authError(message)}
+        <button type="submit" class="btn btn-primary" style="width:100%;margin-top:14px;">Envoyer le lien</button>
+        <button type="button" class="btn btn-ghost" style="width:100%;margin-top:8px;" id="auth-toggle">Retour</button>
+      </form>`);
+  }
+
   return authShellHTML(`
     <form id="auth-form">
       <h2 style="font-family:var(--font-display);font-size:23px;margin-bottom:6px;">
@@ -236,6 +252,23 @@ function signInHTML(mode, message){
         ${inscription ? 'Créer mon compte' : 'Entrer'}</button>
       <button type="button" class="btn btn-ghost" style="width:100%;margin-top:8px;" id="auth-toggle">
         ${inscription ? 'J’ai déjà un compte' : 'Créer un compte'}</button>
+      ${inscription ? '' : `<button type="button" class="btn btn-ghost" style="width:100%;margin-top:2px;font-size:13.5px;" id="auth-forgot">Mot de passe oublié ?</button>`}
+    </form>`);
+}
+
+/* Choisir un nouveau mot de passe, après avoir suivi le lien reçu par e-mail.
+   Supabase a déjà ouvert une session au moment où cet écran s'affiche : il ne
+   reste qu'à enregistrer le nouveau mot de passe. */
+function newPasswordHTML(message){
+  return authShellHTML(`
+    <form id="newpass-form">
+      <h2 style="font-family:var(--font-display);font-size:23px;margin-bottom:6px;">Nouveau mot de passe</h2>
+      <p style="color:var(--ink-muted);margin-bottom:20px;font-size:14.5px;">
+        Choisissez-en un nouveau. Six caractères au minimum.</p>
+      <div class="field"><label>Nouveau mot de passe</label>
+        <input type="password" name="password" autocomplete="new-password" required minlength="6"></div>
+      ${authError(message)}
+      <button type="submit" class="btn btn-primary" style="width:100%;margin-top:14px;">Enregistrer</button>
     </form>`);
 }
 
@@ -290,9 +323,24 @@ async function ensureSignedIn(){
         const fd = new FormData(form);
         const email = String(fd.get('email')).trim();
         const password = String(fd.get('password'));
+
+        if(mode === 'forgot'){
+          const { error } = await sbClient.auth.resetPasswordForEmail(email, {
+            redirectTo: location.origin + location.pathname,
+          });
+          // On ne dit JAMAIS si l'adresse existe : ce serait donner à n'importe
+          // qui le moyen de savoir qui travaille dans l'établissement.
+          mode = 'signin';
+          render(error && error.status >= 500
+            ? 'Serveur injoignable. Réessayez dans un instant.'
+            : 'Si un compte existe pour cette adresse, un lien vient d’être envoyé. Pensez à regarder dans les indésirables.');
+          return;
+        }
+
         const res = mode === 'signup'
           ? await sbClient.auth.signUp({ email, password,
-              options:{ data:{ full_name: String(fd.get('fullname')||'').trim() } } })
+              options:{ data:{ full_name: String(fd.get('fullname')||'').trim() },
+                        emailRedirectTo: location.origin + location.pathname } })
           : await sbClient.auth.signInWithPassword({ email, password });
         if(res.error){ render(authMessage(res.error)); return; }
         // Sans session après inscription, c'est que la confirmation par e-mail
@@ -307,7 +355,39 @@ async function ensureSignedIn(){
         resolve(true);
       });
       const toggle = document.getElementById('auth-toggle');
-      if(toggle) toggle.addEventListener('click', ()=>{ mode = (mode==='signup'?'signin':'signup'); render(''); });
+      if(toggle) toggle.addEventListener('click', ()=>{
+        mode = (mode === 'signin') ? 'signup' : 'signin';   // « Retour » depuis l'oubli ramène ici aussi
+        render('');
+      });
+      const oubli = document.getElementById('auth-forgot');
+      if(oubli) oubli.addEventListener('click', ()=>{ mode = 'forgot'; render(''); });
+    };
+    render('');
+  });
+}
+
+/* Retour depuis le lien reçu par e-mail. Supabase lit le jeton présent dans
+   l'adresse et ouvre une session, puis annonce PASSWORD_RECOVERY. Tant que le
+   nouveau mot de passe n'est pas choisi, on ne laisse pas entrer : sinon la
+   personne se retrouverait dans l'application avec son ancien mot de passe
+   toujours inconnu d'elle, et rebloquée à la prochaine connexion. */
+function watchPasswordRecovery(){
+  sbClient.auth.onAuthStateChange((evenement)=>{
+    if(evenement !== 'PASSWORD_RECOVERY') return;
+    const render = msg => {
+      showAuth(newPasswordHTML(msg));
+      document.getElementById('newpass-form').addEventListener('submit', async e=>{
+        e.preventDefault();
+        const btn = e.target.querySelector('button[type=submit]');
+        btn.disabled = true; btn.textContent = 'Un instant…';
+        const mdp = String(new FormData(e.target).get('password'));
+        const { error } = await sbClient.auth.updateUser({ password: mdp });
+        if(error){ render(authMessage(error)); return; }
+        // L'adresse porte encore le jeton de récupération : on la nettoie avant
+        // de recharger, sinon le même écran se rouvrirait en boucle.
+        history.replaceState(null, '', location.origin + location.pathname);
+        location.reload();
+      });
     };
     render('');
   });
