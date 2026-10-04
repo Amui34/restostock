@@ -141,7 +141,14 @@ h1,h2,h3,h4{ font-family:var(--font-display); font-weight:600; text-wrap:balance
 }
 .topbar h1{ font-size:22px; }
 .topbar .desc{ color:var(--ink-muted); font-size:13px; margin-top:2px; }
-.content{ padding:22px 28px 60px; max-width:1180px; }
+/* Sur un écran d'ordinateur, le plafond de 1180 px coupait les deux tableaux
+   les plus larges — Produits & prix (1220 px) et Stock & commandes (1278 px) —
+   pendant qu'il restait 270 px inutilisés à droite. Ce plafond est là pour que
+   les phrases ne s'étirent pas sur toute la largeur, pas pour contraindre les
+   tableaux : on relève la colonne, et on borne le seul élément qui en souffre,
+   le texte suivi posé directement dans la page. */
+.content{ padding:22px 28px 60px; max-width:1400px; }
+.content > .hint{ max-width:78ch; }
 
 /* ============ Bits ============ */
 .card{ background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); box-shadow:var(--shadow); }
