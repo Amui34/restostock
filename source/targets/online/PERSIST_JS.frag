@@ -54,3 +54,10 @@ async function doSave(){
     setSaveIndicator('readonly','Sauvegarde locale (appareil)');
   }
 }
+/* Pas d’équipe sur cette version : un seul appareil, un seul utilisateur.
+   Le cœur interroge cette fonction plutôt que de supposer un contexte. */
+function hasTeam(){ return false; }
+function teamMembers(){ return []; }
+function ensureTeamLoaded(){}
+function teamError(){ return null; }
+function teamLoading(){ return false; }

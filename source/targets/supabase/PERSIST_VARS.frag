@@ -5,6 +5,8 @@ let sbClient = null;
 let sbCompany = null;
 let sbUser = null;
 let sbMembers = null;      // null = l'équipe n'a pas encore été chargée
+let sbTeamLoading = false;
+let sbTeamError = null;
 let lastSnapshot = {};
 let sbReadOnly = false;
 let sbIgnoreUntil = 0;

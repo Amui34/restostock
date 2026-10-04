@@ -7,3 +7,5 @@
   }
   if(a==='export-backup') return exportBackup();
   if(a==='import-backup') return importBackup();
+  if(a==='team-remove') return removeMember(act.dataset.uid);
+  if(a==='team-retry'){ sbTeamError = null; sbMembers = null; render(); return; }

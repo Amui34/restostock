@@ -25494,6 +25494,14 @@ async function doSave(){
     setSaveIndicator('readonly','Sauvegarde locale (appareil)');
   }
 }
+/* Pas d’équipe sur cette version : un seul appareil, un seul utilisateur.
+   Le cœur interroge cette fonction plutôt que de supposer un contexte. */
+function hasTeam(){ return false; }
+function teamMembers(){ return []; }
+function ensureTeamLoaded(){}
+function teamError(){ return null; }
+function teamLoading(){ return false; }
+
 
 /* ================= Domain calculations ================= */
 function productById(id){ return state.products.find(p=>p.id===id) || null; }
@@ -26053,6 +26061,7 @@ function navGroups(){
     {id:'suppliers', label:'Fournisseurs', ico:'truck'},
     {id:'history', label:'Historique', ico:'history'},
     ...(reviewTotal() ? [{id:'review', label:'À vérifier', ico:'alert', count:reviewTotal()}] : []),
+    ...(hasTeam() ? [{id:'team', label:'Équipe', ico:'users'}] : []),
     {id:'settings', label:'Réglages', ico:'gear'},
   ]},
   ];
@@ -26068,6 +26077,7 @@ const PAGE_META = {
   stock:['Niveaux de stock','Quantités actuelles, alertes de seuil bas et valeur du stock'],
   'inventory-list':['Inventaires','Sessions de comptage physique et écarts avec le stock théorique'],
   losses:['Contrôle des pertes','Ce qui est sorti du stock sans être vendu, entre deux inventaires'],
+  team:['Équipe','Qui a accès à cet établissement, et avec quels droits'],
   'inventory-detail':['Détail de l’inventaire',''],
   orders:['Suggestions de commande','Produits sous le seuil bas, regroupés par fournisseur, avec quantités et coûts suggérés'],
   'print-batch':['Impression groupée','Toutes les fiches techniques prêtes à imprimer'],
@@ -26118,6 +26128,9 @@ function pageMeta(view){
   return ['',''];
 }
 function isRoutableView(view){
+  // #equipe n'existe pas sur les versions mono-poste : l'adresse ne doit pas
+  // ouvrir un écran vide, elle doit simplement ne mener nulle part.
+  if(view==='team') return hasTeam();
   if(PAGE_META[view]) return true;
   if(view==='recipe-detail' || view==='product-detail') return true;
   return categories().some(c=>recipesViewId(c.id)===view || catalogueViewId(c.id)===view);
@@ -26164,6 +26177,7 @@ function render(){
     else if(ui.view==='stock') app.innerHTML = viewStock();
     else if(ui.view==='inventory-list') app.innerHTML = viewInventoryList();
     else if(ui.view==='losses') app.innerHTML = viewLosses();
+    else if(ui.view==='team') app.innerHTML = viewTeam();
     else if(ui.view==='inventory-detail') app.innerHTML = viewInventoryDetail(ui.id, actions);
     else if(ui.view==='orders') app.innerHTML = viewOrders();
     else if(ui.view==='print-batch') app.innerHTML = viewPrintBatch(ui.id, actions);
@@ -27366,6 +27380,86 @@ function valueTotalOf(lines, champ){
   let s = 0;
   lines.forEach(l=>{ s += valueForQty(l.p, l[champ]) || 0; });
   return s;
+}
+
+/* ================= L'équipe =================
+   Qui a accès, et avec quels droits. Trois rôles, et un principe : on ne
+   distribue pas des cases à cocher, on désigne un métier. Un responsable sait
+   dire « Julien est mon chef de cuisine » ; il ne sait pas dire s'il doit
+   pouvoir écrire dans la table des inventaires validés.
+
+   Ce que l'écran NE fait pas, volontairement : il n'affiche aucune adresse
+   e-mail. La base ne les expose pas, et un patron n'a pas besoin de l'adresse
+   de son commis pour lui donner un rôle. Chacun crée son compte lui-même avec
+   l'adresse qu'il veut, et rejoint l'établissement avec le code dicté. */
+const ROLE_EXPLAIN = {
+  patron:  'Voit et modifie tout, y compris les réglages et les inventaires déjà validés. C’est aussi le seul à gérer l’équipe.',
+  manager: 'Saisit les réceptions, les ventes, les fiches et les inventaires. Voit les prix et les marges. Ne peut pas rouvrir un inventaire validé ni changer les réglages.',
+  employe: 'Saisit les réceptions et les comptages d’inventaire. Ne voit aucun prix, aucune marge, aucune vente — la base refuse de les lui envoyer, ce n’est pas qu’un affichage.',
+};
+
+function viewTeam(){
+  if(!hasTeam()) return `<div class="card empty"><h3>Pas d’équipe sur cette version</h3>
+    <p>Cette version fonctionne sur un seul appareil. Le travail à plusieurs demande la version en ligne.</p></div>`;
+  ensureTeamLoaded();
+
+  const membres = teamMembers();
+  const code    = teamJoinCode();
+  const moi     = myUserId();
+  const patron  = myRole() === 'patron';
+
+  if(teamError()){
+    return `<div class="card empty"><div class="big">${ico('alert', 40)}</div>
+      <h3>Impossible de lire l’équipe</h3>
+      <p>La liste n’a pas pu être récupérée — vérifiez la connexion internet.
+         Vos coéquipiers gardent leurs accès : c’est seulement l’affichage qui manque.</p>
+      <div style="margin-top:14px;"><button class="btn btn-primary" data-action="team-retry">Réessayer</button></div></div>`;
+  }
+  if(membres === null || teamLoading()){
+    return `<div class="card" style="padding:18px;"><div class="hint">Chargement de l’équipe…</div></div>`;
+  }
+
+  // Le code est fait pour être dicté à l'oral, pas copié : on l'affiche en
+  // grand et espacé, parce qu'il sera lu à voix haute dans un bar bruyant.
+  const invitation = patron && code ? `
+    <div class="card" style="padding:18px 20px;">
+      <label style="font-size:12.5px;font-weight:600;color:var(--ink-muted);text-transform:uppercase;letter-spacing:.03em;">Code de l’établissement</label>
+      <div style="font-family:var(--font-mono);font-size:34px;font-weight:600;letter-spacing:.22em;margin:8px 0 10px;">${esc(code)}</div>
+      <div class="hint">Pour ajouter quelqu’un : il ouvre l’application, crée son compte avec son e-mail,
+        puis saisit ce code. Il arrive en <strong>équipier</strong> — c’est à vous de l’élever ensuite.
+        Dictez-le, il n’y a rien à installer.</div>
+    </div>` : '';
+
+  const ligne = m => {
+    const estMoi = m.user_id === moi;
+    const nom = m.full_name || 'Sans nom';
+    return `<tr>
+      <td>${esc(nom)}${estMoi?' <span class="hint">(vous)</span>':''}
+        <div class="hint">${esc(ROLE_EXPLAIN[m.role] || '')}</div></td>
+      <td>${patron
+        ? `<select data-onchange="teamRole" data-uid="${esc(m.user_id)}" style="min-width:140px;">
+             ${['patron','manager','employe'].map(r=>`<option value="${r}"${r===m.role?' selected':''}>${esc(ROLE_LABELS[r])}</option>`).join('')}
+           </select>`
+        : esc(ROLE_LABELS[m.role] || m.role)}</td>
+      <td class="num">${patron && !estMoi
+        ? `<button class="btn btn-sm btn-ghost" data-action="team-remove" data-uid="${esc(m.user_id)}">Retirer</button>`
+        : ''}</td>
+    </tr>`;
+  };
+
+  const tableau = membres.length ? `
+    <div class="tablewrap" style="margin-top:16px;"><table>
+      <thead><tr><th>Personne</th><th>Rôle</th><th></th></tr></thead>
+      <tbody>${membres.map(ligne).join('')}</tbody>
+    </table></div>`
+    : `<div class="card empty" style="margin-top:16px;"><h3>Vous êtes seul pour l’instant</h3>
+        <p>Dictez le code ci-dessus à vos chefs pour qu’ils rejoignent l’établissement.</p></div>`;
+
+  return `
+  ${invitation}
+  ${!patron ? `<div class="hint" style="margin-bottom:4px;">Seul le responsable peut modifier les rôles.</div>` : ''}
+  ${tableau}
+  `;
 }
 
 /* ================= À vérifier =================

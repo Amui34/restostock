@@ -404,15 +404,20 @@ async function loadTeam(){
   if(error) throw error;
   sbMembers = data || [];
 }
-// L'écran demande l'équipe la première fois qu'il s'affiche, puis se redessine.
+/* L'écran demande l'équipe la première fois qu'il s'affiche, puis se redessine.
+   En cas d'échec, `sbMembers` RESTE à null : une liste vide signifierait « vous
+   êtes seul », ce qui est faux et inquiétant alors que le réseau a simplement
+   coupé. L'écran affiche l'échec, et la prochaine visite réessaie. */
 function ensureTeamLoaded(){
-  if(sbMembers !== null) return;
-  sbMembers = [];                       // évite de relancer pendant le chargement
-  loadTeam().then(render).catch(err=>{
-    console.error(err);
-    setSaveIndicator('error','Équipe indisponible');
-  });
+  if(sbMembers !== null || sbTeamLoading) return;
+  sbTeamLoading = true;
+  loadTeam()
+    .then(()=>{ sbTeamError = null; })
+    .catch(err=>{ console.error(err); sbTeamError = err; })
+    .finally(()=>{ sbTeamLoading = false; render(); });
 }
+function teamError(){ return sbTeamError; }
+function teamLoading(){ return sbTeamLoading; }
 // Un établissement sans responsable ne peut plus ni changer un rôle ni modifier
 // ses réglages : plus personne n'a le droit, et la base ne fera pas d'exception.
 function lastPatron(uid){
