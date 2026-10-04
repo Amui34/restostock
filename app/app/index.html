@@ -204,7 +204,20 @@ select.pill, .toolbar select{ padding:10px 12px; min-height:42px; font-size:14.5
 .btn-sm{ padding:7px 12px; min-height:36px; font-size:13.5px; border-radius:8px; }
 .spacer{ flex:1; }
 
+/* Les deux premiers calques défilent AVEC le contenu (« local ») et viennent
+   recouvrir les ombres dès qu'on atteint un bord : l'ombre de droite s'efface
+   donc d'elle-même une fois la dernière colonne atteinte, sans une ligne de
+   JavaScript. */
 .tablewrap{ overflow-x:auto; border:1px solid var(--border); border-radius:var(--radius); background:var(--surface); }
+.tablewrap[data-scrollable]{
+  background:
+    linear-gradient(to right, var(--surface) 60%, rgba(0,0,0,0)) left center / 32px 100% no-repeat local,
+    linear-gradient(to left,  var(--surface) 60%, rgba(0,0,0,0)) right center / 32px 100% no-repeat local,
+    radial-gradient(farthest-side at 0 50%, rgba(0,0,0,.14), rgba(0,0,0,0)) left center / 11px 100% no-repeat,
+    radial-gradient(farthest-side at 100% 50%, rgba(0,0,0,.14), rgba(0,0,0,0)) right center / 11px 100% no-repeat,
+    var(--surface);
+}
+.scroll-note{ font-size:12.5px; color:var(--ink-faint); margin-top:6px; }
 table{ width:100%; border-collapse:collapse; font-size:14.5px; }
 th{ text-align:left; padding:11px 14px; font-size:11px; font-weight:600; text-transform:uppercase; letter-spacing:.09em; color:var(--ink-faint); border-bottom:1px solid var(--border); background:var(--surface-2); white-space:nowrap; position:sticky; top:0; }
 th.sortable{ cursor:pointer; user-select:none; }
@@ -1859,7 +1872,47 @@ function render(){
     app.innerHTML = `<div class="empty"><div class="big">${ico('alert', 40)}</div><h3>Une erreur est survenue</h3><p>${esc(err.message)}</p></div>`;
     console.error(err);
   }
+  markScrollableTables();
 }
+
+/* Un tableau plus large que son cadre défile latéralement — mais rien ne le
+   disait. Sur un portable, les dernières colonnes de « Produits & prix » ou de
+   « Stock & commandes » restaient introuvables : on ne devine pas qu'il faut
+   faire glisser.
+
+   La mention est posée ici, après coup, plutôt que dans chaque écran : un
+   tableau ajouté demain en hérite sans que personne ait à y penser. Et elle
+   n'apparaît que si le tableau déborde vraiment, donc jamais sur un grand
+   écran où tout tient. */
+function markScrollableTables(){
+  document.querySelectorAll('.tablewrap').forEach(w=>{
+    const t = w.querySelector('table');
+    const deborde = !!(t && t.scrollWidth > w.clientWidth + 1);
+    w.toggleAttribute('data-scrollable', deborde);
+    const suivant = w.nextElementSibling;
+    const note = (suivant && suivant.classList.contains('scroll-note')) ? suivant : null;
+    if(deborde && !note){
+      const n = document.createElement('div');
+      n.className = 'scroll-note no-print';
+      n.textContent = '→ Faites glisser le tableau sur le côté pour voir les colonnes suivantes.';
+      w.after(n);
+    } else if(!deborde && note){
+      note.remove();
+    }
+  });
+}
+// Élargir la fenêtre doit faire disparaître la mention, la rétrécir la ramener.
+let scrollNoteTimer = null;
+function remeasureTablesSoon(){
+  clearTimeout(scrollNoteTimer);
+  scrollNoteTimer = setTimeout(markScrollableTables, 150);
+}
+window.addEventListener('resize', remeasureTablesSoon);
+/* Les polices arrivent APRÈS le premier rendu : un tableau mesuré avec la
+   police de secours ne fait pas la même largeur qu'une fois Fraunces et IBM
+   Plex en place. Sans cette reprise, la mention pouvait manquer — ou rester
+   alors que le tableau tient désormais. */
+if(document.fonts && document.fonts.ready) document.fonts.ready.then(markScrollableTables);
 
 /* ================= Historique ================= */
 // Tout ce qui s'est passé dans le restaurant, reconstitué directement depuis les données
