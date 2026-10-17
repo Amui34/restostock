@@ -1,126 +1,140 @@
-# Mettre le Livre de Prix en ligne
+# RestoStock — mise en ligne et exploitation
 
-Objectif : une adresse internet que toute l'équipe ouvre, avec **les mêmes
-données pour tout le monde**, mises à jour en direct.
+Objectif : une adresse que toute l'équipe ouvre, avec **les mêmes données pour
+tout le monde**, mises à jour en direct, et où **chacun ne voit que ce que son
+rôle autorise** (patron · manager · employé).
 
-**Ton temps total : environ 35 minutes**, en cinq étapes. Aucune connaissance
-technique n'est nécessaire — il s'agit de créer deux comptes gratuits, de
-copier-coller un texte, et de déposer un fichier.
+> Mis à jour le 2026-10-17 — remplace l'ancienne procédure « Cloudflare Pages +
+> compte d'équipe unique », qui ne correspond plus ni à l'application ni au
+> déploiement réel.
 
 ---
 
-## Pourquoi deux services
+## Comment ça tient ensemble
 
-| Service | À quoi il sert | Coût |
+| Brique | Rôle | Où |
 |---|---|---|
-| **Supabase** | Garde les données, et vérifie le mot de passe de l'équipe | Gratuit à votre volume |
-| **Cloudflare Pages** | Héberge la page elle-même, pour qu'elle ait une adresse | Gratuit |
+| **Supabase** | Base de données, comptes utilisateurs, règles d'accès (RLS), temps réel | Projet **Restostock**, organisation **Amui studio** |
+| **Serveur OVH** | Sert la page (`app/`) via Caddy, derrière le proxy partagé `amui-proxy` qui gère le HTTPS | Conteneur Docker `restostock` |
+| **GitHub Actions** | Déploie automatiquement sur le serveur à chaque `push` sur `main` | `.github/workflows/main.yaml` |
 
-L'un sans l'autre ne suffit pas : Cloudflare sert la page, Supabase garde ce
-que vous y saisissez.
-
----
-
-## Étape 1 — Créer le projet Supabase *(10 min)*
-
-1. Va sur **supabase.com**, clique **Start your project**, crée un compte
-   (une adresse e-mail suffit).
-2. Clique **New project**.
-3. Renseigne :
-   - **Name** : `livre-de-prix-bivouak`
-   - **Database Password** : un mot de passe long, **note-le de côté**. Ce
-     n'est pas celui de l'équipe, c'est celui de la base — tu ne t'en
-     serviras quasiment jamais, mais il est impossible à récupérer.
-   - **Region** : choisis l'Europe (Frankfurt ou Paris), pour que l'appli
-     réponde vite depuis le restaurant.
-4. Clique **Create new project** et laisse tourner deux minutes.
+La page ne contient **aucune donnée** : tout vit dans Supabase. Redéployer la
+page ne touche jamais aux données.
 
 ---
 
-## Étape 2 — Préparer la base *(2 min)*
+## 1. Supabase
 
-1. Dans le menu de gauche, ouvre **SQL Editor**.
-2. Clique **New query**.
-3. Ouvre le fichier [`supabase-schema.sql`](supabase-schema.sql) de ce
-   dossier, copie **tout** son contenu, colle-le dans la fenêtre.
-4. Clique **Run** (ou Ctrl+Entrée).
+### Le projet
+- Organisation **Amui studio** → projet **Restostock** (`iuzmerktgvgskhsojdha`,
+  `https://iuzmerktgvgskhsojdha.supabase.co`), région eu-west-1.
+- L'ancien projet (`fimkglvsbwxyxevlxiny`, autre organisation) est abandonné
+  depuis le 2026-10-17 ; ses données n'ont pas été reprises (décision d'équipe).
 
-Tu dois voir *Success. No rows returned*. C'est le résultat attendu : le
-script crée des tables, il n'affiche rien.
+### Le schéma (tables, rôles, cloisonnement, temps réel)
+Tout est dans [`supabase-schema.sql`](supabase-schema.sql). Il est
+**idempotent** : on peut le rejouer sans rien casser, et il **refuse** de
+supprimer la table `documents` si elle contient des données.
 
----
+Pour l'appliquer (projet neuf ou mise à jour du schéma) :
+1. Supabase → **SQL Editor** → **New query**.
+2. Coller tout le contenu de `supabase-schema.sql` → **Run** (⌘↵).
+3. Supabase affiche « Potential issue detected » à cause des `drop policy if
+   exists` : c'est attendu, cliquer **Run query**.
+4. Résultat attendu : *Success. No rows returned*.
 
-## Étape 3 — Créer l'identifiant de l'équipe *(3 min)*
+Ce que le schéma garantit, côté base (pas côté page — un employé qui
+bidouillerait la page ne verrait pas un prix de plus) :
+- chaque entreprise est cloisonnée (`company_id`) ;
+- l'employé ne lit pas les prix, ventes, réglages ; il écrit le stock et les
+  inventaires en cours ; le manager tout sauf les réglages et les inventaires
+  validés ; le patron tout ;
+- temps réel sur `documents` avec `REPLICA IDENTITY FULL` (indispensable pour
+  que les modifications/suppressions des collègues se propagent).
 
-Un seul compte pour tout le monde, affiché en cuisine.
+### Les comptes
+Plus de compte d'équipe unique : **chacun s'inscrit depuis l'application**
+(e-mail + mot de passe). Le patron crée son entreprise ; les autres la
+rejoignent avec le **code à 6 caractères** affiché dans son écran Équipe, et
+arrivent en « employé » (le patron les promeut ensuite). Personne ne
+s'auto-promeut.
 
-1. Menu **Authentication** → onglet **Users**.
-2. Bouton **Add user** → **Create new user**.
-3. Renseigne :
-   - **Email** : par exemple `equipe@bivouak.fr` *(l'adresse n'a pas besoin
-     d'exister réellement)*
-   - **Password** : un mot de passe simple à dicter mais pas évident à
-     deviner. Évite `bivouak` ou `123456`.
-   - Coche **Auto Confirm User** — sinon Supabase attendrait une
-     confirmation par e-mail qui n'arrivera jamais.
-4. **Create user**.
-
-> ⚠️ Ce mot de passe donne accès à tous vos prix et marges. Il s'affiche en
-> cuisine, pas sur les réseaux, et il se change le jour où quelqu'un quitte
-> l'équipe (même écran, bouton **Reset password**).
-
----
-
-## Étape 4 — Me transmettre deux valeurs *(2 min)*
-
-1. Menu **Project Settings** (la roue dentée) → **API**.
-2. Copie :
-   - **Project URL** — ressemble à `https://abcdefgh.supabase.co`
-   - La clé **`anon` / `public`** — un long texte commençant par `eyJ...`
-
-Envoie-moi ces deux valeurs. Elles sont **publiques par conception** : elles
-sont faites pour figurer dans la page, et ne donnent aucun accès sans le mot
-de passe de l'équipe.
-
-> 🚫 **Ne transmets jamais la clé `service_role`**, sur la même page, marquée
-> *secret*. Celle-là contourne toutes les protections.
-
-Je te renvoie alors le fichier `index.html` prêt à déposer.
+**Confirmation d'e-mail** — réglage *Authentication → Sign In / Providers →
+Confirm email*. État actuel : **activé** (l'utilisateur doit cliquer le lien
+reçu avant de pouvoir se connecter). Deux conséquences à connaître :
+- l'application affiche « compte créé, vérifie ta boîte mail » à l'inscription ;
+- le SMTP fourni par défaut par Supabase est **limité à quelques e-mails par
+  heure** pour tout le projet : au-delà, les nouveaux inscrits ne reçoivent
+  rien. Pour un usage réel, brancher un SMTP personnalisé (*Authentication →
+  Emails → SMTP Settings* ; Resend, Brevo… gratuits à ce volume) **ou**
+  désactiver « Confirm email » (le code d'entreprise reste alors la barrière
+  d'accès).
 
 ---
 
-## Étape 5 — Mettre la page en ligne *(15 min)*
+## 2. Brancher la page sur le projet
 
-1. Va sur **pages.cloudflare.com**, crée un compte gratuit.
-2. **Create a project** → **Upload assets** (et non « Connect to Git »).
-3. Nomme le projet `livre-de-prix-bivouak`.
-4. Fais glisser le fichier `index.html` que je t'aurai renvoyé.
-5. **Deploy site**.
+Les deux valeurs publiques du projet (Supabase → *Settings → API Keys*) :
+- **Project URL** : `https://….supabase.co`
+- **Publishable key** : `sb_publishable_…` (onglet « Publishable and secret API
+  keys »)
 
-Tu obtiens une adresse du type
-`https://livre-de-prix-bivouak.pages.dev`. C'est elle que l'équipe met en
-favori.
+Elles vivent dans **un seul fichier** : [`data/supabase.json`](../data/supabase.json).
+La page est ensuite **générée** — ne pas modifier `app/app/index.html` à la main :
 
-**La première ouverture prend une minute** : l'appli installe les 477 produits
-et les 86 fiches dans la base. Les fois suivantes sont instantanées.
+```bash
+python3 source/build.py
+```
+
+`build.py` injecte URL et clé dans `app/app/index.html` (et régénère la vitrine
+et les fichiers hors-ligne). Puis commit.
+
+> 🚫 **Jamais la clé `secret` / `service_role`** dans le dépôt, dans la page ou
+> dans un message : elle contourne toutes les protections. Les clés
+> *publishable* sont faites pour être publiques et ne donnent rien sans compte.
 
 ---
 
-## Ensuite
+## 3. Déployer sur le serveur OVH
 
-**Mettre l'appli à jour** — quand je fais évoluer le code, je te renvoie un
-nouveau `index.html`, tu retournes sur Cloudflare Pages → **Create new
-deployment** → tu déposes le fichier. Les données ne bougent pas : elles
-vivent dans Supabase, pas dans la page.
+**Automatique** : tout `git push` sur `main` déclenche le workflow *Deploy*
+([`.github/workflows/main.yaml`](../.github/workflows/main.yaml)), qui se
+connecte au serveur en SSH et exécute :
 
-**Si le wifi tombe en plein service** — l'appli affiche la dernière version
-vue sur l'appareil, en lecture seule, et l'indique clairement. On peut
-consulter une fiche, mais pas saisir. Le fichier
-`livre-de-prix-hors-ligne.html` reste le vrai filet de secours : garde-le sur
-la tablette.
+```
+git fetch --all --prune && git reset --hard origin/main
+docker compose -f compose.proxy.yaml up -d --build --remove-orphans
+docker image prune -f
+```
 
-**Sauvegardes** — écran **Réglages** → **Exporter une sauvegarde**. À faire
-avant chaque grosse opération (inventaire, reprise de fiches).
+Suivre l'exécution : GitHub → onglet **Actions**. Un run vert = la nouvelle
+page est servie. Lancement manuel possible : *Actions → Deploy → Run workflow*.
+
+Secrets attendus côté GitHub (*Settings → Secrets → Actions*) :
+`DEPLOY_SSH_HOST`, `DEPLOY_SSH_USER`, `DEPLOY_SSH_KEY`, `DEPLOY_SSH_PORT`
+(défaut 22), `DEPLOY_PATH` (clone du dépôt sur le serveur),
+`DEPLOY_COMPOSE_FILE` (défaut `compose.proxy.yaml`).
+
+Le conteneur est un Caddy qui sert `app/` en HTTP interne (port 80) ; le HTTPS
+et le nom de domaine sont portés par le proxy partagé `amui-proxy`.
+
+**En local** (sans proxy) : `docker compose up -d --build` → http://localhost:8092
+
+---
+
+## Au quotidien
+
+- **Mettre l'appli à jour** : modifier `source/`, `python3 source/build.py`,
+  commit, push → déployé en ~1 min. Les données ne bougent pas.
+- **Changer de projet Supabase** : éditer `data/supabase.json`, rejouer le
+  schéma sur le nouveau projet, `build.py`, commit, push.
+- **Si le wifi tombe** : l'appli affiche la dernière version vue, en lecture
+  seule, et l'indique. `livre-de-prix-hors-ligne.html` reste le filet de
+  secours à garder sur la tablette.
+- **Sauvegardes** : écran **Réglages → Exporter une sauvegarde**, avant toute
+  grosse opération (inventaire, reprise de fiches).
+- **Projet gratuit en pause** : Supabase endort les projets gratuits après une
+  semaine sans usage — le rouvrir sur supabase.com suffit.
 
 ---
 
@@ -128,7 +142,10 @@ avant chaque grosse opération (inventaire, reprise de fiches).
 
 | Ce que tu vois | Ce que ça veut dire |
 |---|---|
-| *Application non configurée* | Le fichier a été construit sans les deux valeurs de l'étape 4 — redonne-les moi |
-| *Identifiant ou mot de passe incorrect* | Le mot de passe d'équipe est faux, ou l'option **Auto Confirm User** a été oubliée à l'étape 3 |
-| *Impossible de joindre le serveur* | Problème de connexion internet, ou projet Supabase en pause (les projets gratuits s'endorment après une semaine sans usage — il suffit de le rouvrir sur supabase.com) |
-| *Connexion impossible* après avoir saisi le mot de passe | Le script SQL de l'étape 2 n'a pas été exécuté |
+| *Application non configurée* | `data/supabase.json` absent ou incomplet au moment du `build.py` |
+| *Compte créé, vérifie ta boîte mail* mais rien n'arrive | Quota du SMTP par défaut atteint → SMTP personnalisé, ou désactiver « Confirm email » |
+| *Email not confirmed* à la connexion | Le lien de confirmation n'a pas été cliqué |
+| *Impossible de joindre le serveur* | Internet, ou projet Supabase en pause |
+| *Code invalide* | Le code d'entreprise est faux (6 caractères, insensible à la casse) |
+| La page ne change pas après un push | Regarder le run **Actions** : secrets manquants ou serveur injoignable |
+| Les modifs d'un collègue n'apparaissent pas sans recharger | Rejouer le schéma : la publication temps réel ou `REPLICA IDENTITY FULL` manque |
