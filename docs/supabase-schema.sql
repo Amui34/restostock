@@ -247,6 +247,12 @@ exception
   when undefined_object then null;   -- publication absente (hors Supabase)
 end $$;
 
+-- L'application filtre les événements par `company_id`. Sans REPLICA IDENTITY
+-- FULL, les événements UPDATE/DELETE ne transportent que la clé primaire :
+-- le filtre ne matche pas, et une fiche supprimée ou modifiée par un collègue
+-- n'apparaît jamais chez les autres sans recharger. Idempotent.
+alter table public.documents replica identity full;
+
 -- =============================================================
 --  Terminé. Plus besoin de créer d'utilisateur à la main :
 --  chacun s'inscrit depuis l'application, le patron crée son
