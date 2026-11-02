@@ -3861,6 +3861,7 @@ function refreshInventoryRow(inputEl, inv, c){
   if(warn && p) warn.textContent = countWarning(p, c.counted_qty, c.theoretical_qty) || '';
   const prog = document.getElementById('inv-progress');
   if(prog) prog.textContent = String((inv.counts||[]).filter(x=>x.counted_qty!=null).length);
+  refreshGroupProgress(inv);
   const tot = document.getElementById('inv-total-variance');
   if(tot) tot.textContent = fmtMoney(inventoryTotalVarianceValue(inv));
 }
@@ -3876,6 +3877,41 @@ function refreshInventoryRow(inputEl, inv, c){
    pour 100 cl, « 2,5kg » pour 2500 g). Multiplier par un format incertain
    produirait des comptages faux sans que rien ne le signale — bien pire qu'une
    multiplication faite de tête, qu'on refait quand le résultat surprend. */
+/* ---- Savoir où on en est, zone par zone ----
+   Un compteur global « 40 sur 176 » ne dit pas si la cave à vin est finie.
+   À plusieurs dans la réserve, c'est pourtant la seule question : par où
+   reprendre, et qu'est-ce qu'on a déjà fait.
+
+   Le compte s'affiche donc sur chaque groupe, et bascule en « terminé » quand
+   il ne reste rien — un état visible vaut mieux qu'un « 12/12 » à relire. */
+function groupProgressHTML(lignes){
+  const total = lignes.length;
+  const faits = lignes.filter(l => l.c.counted_qty != null).length;
+  if(!total) return '';
+  return faits === total
+    ? `<span class="pill pill-good">${ico('check', 13)} terminé</span>`
+    : `<span class="pill pill-neutral">${faits} / ${total}</span>`;
+}
+// Après chaque frappe : on ne redessine que les compteurs, jamais les champs.
+function refreshGroupProgress(inv){
+  document.querySelectorAll('[data-grp-progress]').forEach(el=>{
+    const nom = el.dataset.grpProgress;
+    const lignes = (inv.counts||[])
+      .map(c => ({ c, p: productById(c.product_id) }))
+      .filter(l => l.p && inventoryGroupName(l.p) === nom);
+    el.innerHTML = groupProgressHTML(lignes);
+  });
+}
+// Le regroupement doit être le même au rendu et au rafraîchissement, sinon
+// un produit changerait de groupe entre deux frappes.
+function inventoryGroupName(p){
+  const mode = ui.invGroupBy || 'auto';
+  if(mode === 'zone')   return p.storage_zone || 'Sans zone de rangement';
+  if(mode === 'family') return p.family || 'Sans famille';
+  if(mode === 'none')   return 'Tous les produits';
+  return p.family || p.storage_zone || 'Non classé';
+}
+
 function countInputHTML(inv, idx, c, p){
   const cle = `${inv.id}:${idx}`;
   return `
@@ -3931,11 +3967,8 @@ function viewInventoryDetail(id, actionsEl){
   // Regroupées par zone de stockage (à défaut par famille) pour suivre l'ordre de la
   // marche physique dans les réserves/chambres froides, comme sur les fiches papier.
   const mode = ui.invGroupBy || 'auto';
-  const groupNameFor = p =>
-    mode==='zone'   ? (p.storage_zone || 'Sans zone de rangement') :
-    mode==='family' ? (p.family || 'Sans famille') :
-    mode==='none'   ? 'Tous les produits' :
-                      (p.family || p.storage_zone || 'Non classé');
+  // Une seule définition, partagée avec le rafraîchissement des compteurs.
+  const groupNameFor = inventoryGroupName;
   const groups = {};
   const groupOrder = [];
   rows.forEach(row=>{
@@ -4002,7 +4035,10 @@ function viewInventoryDetail(id, actionsEl){
     ${searchBlock}
     ${emptyBlock}
     ${groupOrder.map(g=>`
-    <h3 style="margin:20px 0 8px;font-size:14px;color:var(--ink-faint);">${esc(g)}</h3>
+    <h3 style="margin:20px 0 8px;font-size:14px;color:var(--ink-faint);display:flex;align-items:baseline;gap:10px;">
+      <span>${esc(g)}</span>
+      ${inProgress ? `<span class="grp-progress" data-grp-progress="${esc(g)}">${groupProgressHTML(groups[g])}</span>` : ''}
+    </h3>
     <div class="tablewrap"><table>
       <thead><tr><th>Produit</th><th class="num">Réel — mois précédent</th><th class="num">Prévu ${tip('prevu')}</th><th class="num">Réel ${tip('reel')}</th><th class="num">Écart</th><th class="num">Valeur écart</th>${inProgress?'<th class="no-print"></th>':''}</tr></thead>
       <tbody>
