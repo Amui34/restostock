@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <title>RestoStock</title>
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#1a1714">
 <!-- Installable sur l'écran d'accueil : l'appli obtient son icône et s'ouvre
      en plein écran, sans barre d'adresse. C'est ce qui la fait ressembler à

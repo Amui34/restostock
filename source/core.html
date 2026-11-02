@@ -336,6 +336,43 @@ th .info-tip{ font-weight:600; }
 
 .menu-toggle{ display:none; }
 .sidebar-backdrop{ display:none; }
+
+/* ============ Sur téléphone : une application, pas un site ============
+   Un menu hamburger est une convention du web. Sur un téléphone, on attend
+   une barre d'onglets en bas : les destinations sont visibles en permanence,
+   atteignables au pouce, et l'écran courant est marqué sans qu'on ait à
+   ouvrir quoi que ce soit.
+
+   On y met ce qui se fait au quotidien ou chaque mois. Le reste n'a pas
+   disparu — « Plus » ouvre le menu complet. */
+.tabbar{ display:none; }
+@media (max-width: 880px){
+  .tabbar{
+    display:grid; grid-auto-flow:column; grid-auto-columns:1fr;
+    position:fixed; left:0; right:0; bottom:0; z-index:40;
+    background:var(--surface); border-top:1px solid var(--border);
+    /* L'indicateur d'accueil de l'iPhone mange le bas de l'écran : sans ce
+       retrait, le dernier onglet se tape à côté. */
+    padding-bottom:env(safe-area-inset-bottom, 0px);
+    box-shadow:0 -1px 10px rgba(20,24,18,.06);
+  }
+  .tabbar button{
+    all:unset; cursor:pointer; display:flex; flex-direction:column; align-items:center;
+    justify-content:center; gap:3px; padding:9px 2px 7px; min-height:52px;
+    color:var(--ink-faint); font-size:10.5px; font-weight:600; letter-spacing:.01em;
+    text-align:center; transition:color .12s;
+  }
+  .tabbar button .ico{ display:grid; place-items:center; }
+  .tabbar button.active{ color:var(--accent-strong); }
+  .tabbar button.active .ico{ transform:translateY(-1px); }
+  .tabbar .lab{ max-width:100%; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  /* La barre flotte au-dessus du contenu : on lui réserve sa place, sinon le
+     dernier produit d'un inventaire reste définitivement inaccessible. */
+  .content{ padding-bottom:calc(74px + env(safe-area-inset-bottom, 0px)) !important; }
+  /* L'encoche recouvre le titre quand l'appli est en plein écran. */
+  .topbar{ padding-top:calc(14px + env(safe-area-inset-top, 0px)); }
+  .sidebar{ padding-top:calc(20px + env(safe-area-inset-top, 0px)); }
+}
 @media (max-width: 880px){
   input, select, textarea{ font-size:16px !important; }
   .btn{ min-height:46px; }
@@ -422,6 +459,7 @@ __SIDEBAR_NOTE__
     <div class="content" id="app"></div>
   </div>
 </div>
+<nav class="tabbar no-print" id="tabbar" aria-label="Navigation principale"></nav>
 <div id="overlay-root"></div>
 <input type="file" id="recipe-photo-input" accept="image/*" style="display:none;">
 
@@ -1275,6 +1313,38 @@ function renderNav(){
     <div class="nav-more-items"${ouvert?'':' hidden'}>${plus.items.map(bouton).join('')}</div>` : '');
 }
 
+/* Les cinq destinations de la barre d'onglets. Ce sont les gestes du métier —
+   ce qu'on ouvre tous les jours, puis ce qu'on fait chaque mois — et non un
+   découpage par nature de donnée. « Plus » n'est pas une destination : il
+   déplie le menu complet, qui reste la carte entière de l'application. */
+function tabItems(){
+  const cats = categories();
+  const fiches = cats.length ? recipesViewId(cats[0].id) : null;
+  return [
+    {id:'reception', label:'Réception', ico:'box'},
+    ...(fiches ? [{id:fiches, label:'Fiches', ico: cats[0].ico || 'clipboard'}] : []),
+    {id:'inventory-list', label:'Inventaires', ico:'checklist'},
+    {id:'losses', label:'Pertes', ico:'gauge'},
+    {id:'__more__', label:'Plus', ico:'grid'},
+  ];
+}
+function renderTabBar(){
+  const bar = document.getElementById('tabbar');
+  if(!bar) return;
+  // Un écran atteint depuis un onglet garde cet onglet allumé : le détail d'une
+  // fiche appartient encore à « Fiches ».
+  const actif = v => v==='recipe-detail' ? (categories().length ? recipesViewId(categories()[0].id) : '')
+               : v==='inventory-detail' ? 'inventory-list'
+               : v;
+  const courant = actif(ui.view);
+  bar.innerHTML = tabItems().map(it => {
+    const on = it.id === courant;
+    return `<button ${it.id==='__more__' ? 'data-action="open-menu"' : `data-nav="${it.id}"`}`
+      + ` class="${on?'active':''}"${on?' aria-current="page"':''}>`
+      + `<span class="ico">${ico(it.ico, 21)}</span><span class="lab">${esc(it.label)}</span></button>`;
+  }).join('');
+}
+
 /* Chaque écran a sa propre adresse (#produits, #inventaires…), pour trois raisons
    très concrètes en service : on peut mettre un écran précis en favori sur la
    tablette, le bouton Retour du navigateur fonctionne, et un lien envoyé à un
@@ -1321,6 +1391,7 @@ function render(){
   applyTheme();
   renderBrand();
   renderNav();
+  renderTabBar();
   const meta = pageMeta(ui.view);
   document.getElementById('page-title').textContent = meta[0];
   document.getElementById('page-desc').textContent = meta[1];
@@ -4293,6 +4364,7 @@ document.addEventListener('click', function(e){
   const a = act.dataset.action;
 
 __EXTRA_ACTIONS__
+  if(a==='open-menu'){ toggleMobileNav(); return; }
   if(a==='toggle-nav-more'){ ui.navMore = !ui.navMore; renderNav(); return; }
   if(a==='view-atrisk'){ ui.marginFilter='atRisk'; setView('margins'); return; }
   if(a==='reset-margin-filter'){ ui.marginFilter='all'; render(); return; }
