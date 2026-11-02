@@ -3854,13 +3854,71 @@ function refreshInventoryRow(inputEl, inv, c){
       : '—';
     tr.children[5].innerHTML = varValue!=null ? fmtMoney(varValue) : '—';
   }
-  const warn = inputEl.parentElement && inputEl.parentElement.querySelector('[data-count-warn]');
+  // La case est maintenant enveloppée dans son étiquette : on cherche depuis
+  // la cellule, sinon le message d'alerte ne se met plus à jour.
+  const cellule = inputEl.closest('td') || inputEl.parentElement;
+  const warn = cellule && cellule.querySelector('[data-count-warn]');
   if(warn && p) warn.textContent = countWarning(p, c.counted_qty, c.theoretical_qty) || '';
   const prog = document.getElementById('inv-progress');
   if(prog) prog.textContent = String((inv.counts||[]).filter(x=>x.counted_qty!=null).length);
   const tot = document.getElementById('inv-total-variance');
   if(tot) tot.textContent = fmtMoney(inventoryTotalVarianceValue(inv));
 }
+/* ---- Compter dans l'unité qu'on a en main ----
+   Le stock est tenu en unité de base — des centilitres, des grammes. Mais
+   personne ne compte des centilitres sur une étagère : on compte des
+   bouteilles, et il reste un fond dans la dernière.
+
+   Demander « 210 » pour trois bouteilles de 70 cl, c'est trois fois plus de
+   frappe, un calcul de tête à chaque ligne, et c'est exactement là que les
+   erreurs se glissent. On propose donc deux cases : les entiers dans le
+   format d'achat, et le reste dans l'unité de base. L'appli multiplie.
+
+   La case « reste » n'apparaît que si elle a un sens : un produit vendu à la
+   pièce n'a pas de fond de bouteille. */
+function packLabel(p){
+  // Le format d'achat tel qu'il est écrit sur la fiche produit — « 70cl »,
+  // « 2,5kg ». Le montrer plutôt que deviner « bouteille » ou « carton » :
+  // une étiquette inventée serait fausse une fois sur deux.
+  const l = (p.unit_label || '').trim();
+  if(l) return l;
+  if(p.purchase_size && p.base_unit) return fmtNum(p.purchase_size,0) + baseUnitLabel(p.base_unit);
+  return 'unité';
+}
+function countsByPack(p){
+  return !!(p.purchase_size && p.purchase_size > 1 && p.base_unit);
+}
+// Décompose une quantité de base en entiers + reste, pour réafficher ce que
+// la personne a saisi plutôt qu'un total qu'elle n'a jamais tapé.
+function splitCount(p, qty){
+  if(qty == null) return { whole:'', rest:'' };
+  if(!countsByPack(p)) return { whole: fmtNum(qty,2), rest:'' };
+  const whole = Math.floor(round3(qty) / p.purchase_size);
+  const rest  = round3(qty - whole * p.purchase_size);
+  return { whole: whole || (rest ? 0 : ''), rest: rest || '' };
+}
+function countInputHTML(inv, idx, c, p){
+  const cle = `${inv.id}:${idx}`;
+  const { whole, rest } = splitCount(p, c.counted_qty);
+  const champ = (val, cible, suffixe, largeur) => `
+    <label style="display:inline-flex;align-items:center;gap:4px;">
+      <input class="num" style="width:${largeur}px;border:1px solid var(--border);border-radius:6px;padding:4px 6px;background:var(--surface);font-size:15px;"
+             type="text" inputmode="decimal" placeholder="0" value="${val}"
+             data-inv-part="${cible}" data-inventory-count="${cle}">
+      <span class="hint" style="font-size:11.5px;">${esc(suffixe)}</span>
+    </label>`;
+  const saisie = countsByPack(p)
+    ? `<div style="display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap;">
+         ${champ(whole, 'whole', '× ' + packLabel(p), 58)}
+         ${champ(rest,  'rest',  baseUnitLabel(p.base_unit), 58)}
+       </div>
+       <div class="hint" style="font-size:11px;" data-count-total="${cle}">${
+         c.counted_qty!=null ? '= ' + fmtNum(c.counted_qty,2) + ' ' + esc(stockUnitLabel(p)) : ''}</div>`
+    : champ(whole, 'whole', stockUnitLabel(p), 80);
+  return saisie
+    + `<div class="hint" style="font-size:11px;color:var(--warning);" data-count-warn="${cle}">${esc(countWarning(p, c.counted_qty, c.theoretical_qty)||'')}</div>`;
+}
+
 function viewInventoryDetail(id, actionsEl){
   const inv = (state.inventories||[]).find(x=>x.id===id);
   if(!inv) return `<div class="empty">Inventaire introuvable.</div>`;
@@ -3925,8 +3983,7 @@ function viewInventoryDetail(id, actionsEl){
             : '<span class="hint">— premier inventaire</span>'}</td>
           <td class="num">${fmtNum(c.theoretical_qty,2)} ${esc(stockUnitLabel(p))}</td>
           <td class="num">${inProgress
-            ? `<input class="num" style="width:90px;border:1px solid var(--border);border-radius:6px;padding:3px 6px;background:var(--surface);" type="text" inputmode="decimal" value="${c.counted_qty!=null?c.counted_qty:''}" data-inventory-count="${inv.id}:${idx}">
-               <div class="hint" style="font-size:11px;color:var(--warning);" data-count-warn="${inv.id}:${idx}">${esc(countWarning(p, c.counted_qty, c.theoretical_qty)||'')}</div>`
+            ? countInputHTML(inv, idx, c, p)
             : (c.counted_qty!=null?fmtNum(c.counted_qty,2):'—')}</td>
           <td class="num">${variance!=null?`<span class="trend ${variance>0.0001?'up':variance<-0.0001?'down':'flat'}">${variance>0?'+':''}${fmtNum(variance,2)}</span>`:'—'}</td>
           <td class="num">${varValue!=null?fmtMoney(varValue):'—'}</td>
@@ -5261,8 +5318,46 @@ document.addEventListener('click', function(e){
   }
 });
 
+/* Le comptage réagit à la FRAPPE, pas au changement de champ : on doit voir
+   « = 250 cl » pendant qu'on tape, sinon la conversion reste une promesse
+   qu'on ne vérifie qu'en quittant la case. refreshInventoryRow ne retouche
+   que la ligne concernée, donc la saisie en cours n'est jamais détruite. */
+function saisirComptage(t){
+  const [invId, idx] = t.dataset.inventoryCount.split(':');
+  const inv = (state.inventories||[]).find(x=>x.id===invId);
+  if(!inv) return;
+  const c = inv.counts[parseInt(idx,10)];
+  if(!c) return;
+  const p = productById(c.product_id);
+  // Les deux cases forment une seule quantité : on relit la voisine plutôt que
+  // de mémoriser un état, qui se désynchroniserait au prochain rendu.
+  const cellule = t.closest('td') || t.parentElement;
+  const lire = part => {
+    const el = cellule && cellule.querySelector(`[data-inv-part="${part}"]`);
+    return el ? parseNum(el.value) : NaN;
+  };
+  const entiers = lire('whole');
+  const reste   = lire('rest');
+  let total;
+  if(p && countsByPack(p)){
+    // Les deux vides = non compté. Une seule remplie compte pour elle seule :
+    // « 3 bouteilles » sans fond de bouteille est une réponse complète.
+    total = (isNaN(entiers) && isNaN(reste))
+      ? null
+      : round3((isNaN(entiers)?0:entiers) * p.purchase_size + (isNaN(reste)?0:reste));
+  } else {
+    total = isNaN(entiers) ? null : entiers;
+  }
+  c.counted_qty = total;
+  const tot = cellule && cellule.querySelector('[data-count-total]');
+  if(tot && p) tot.textContent = total!=null ? '= ' + fmtNum(total,2) + ' ' + stockUnitLabel(p) : '';
+  scheduleSave();
+  refreshInventoryRow(t, inv, c);
+}
+
 document.addEventListener('input', function(e){
   const t = e.target;
+  if(t.matches('[data-inventory-count]')) return saisirComptage(t);
   if(t.matches('[data-oninput="search"]')){ ui.search = t.value; render(); const el=document.querySelector('[data-oninput="search"]'); if(el) { el.focus(); el.setSelectionRange(el.value.length, el.value.length);} return; }
   if(t.matches('[data-oninput="stockSearch"]')){ ui.stockSearch = t.value; render(); const el=document.querySelector('[data-oninput="stockSearch"]'); if(el) { el.focus(); el.setSelectionRange(el.value.length, el.value.length);} return; }
   if(t.matches('[data-oninput="invSearch"]')){ ui.invSearch = t.value; render(); const el=document.querySelector('[data-oninput="invSearch"]'); if(el) { el.focus(); el.setSelectionRange(el.value.length, el.value.length);} return; }
@@ -5396,17 +5491,6 @@ document.addEventListener('change', function(e){
   if(t.matches('[data-onchange="stockFamilyFilter"]')){ ui.stockFamilyFilter = t.value; render(); return; }
   if(t.matches('[data-onchange="stockZoneFilter"]')){ ui.stockZoneFilter = t.value; render(); return; }
   if(t.matches('[data-onchange="stockSort"]')){ ui.stockSort = t.value; render(); return; }
-  if(t.matches('[data-inventory-count]')){
-    const [invId, idx] = t.dataset.inventoryCount.split(':');
-    const inv = (state.inventories||[]).find(x=>x.id===invId);
-    if(!inv) return;
-    const c = inv.counts[parseInt(idx,10)];
-    const v = parseNum(t.value);
-    c.counted_qty = isNaN(v)?null:v;
-    scheduleSave();
-    refreshInventoryRow(t, inv, c);
-    return;
-  }
   if(t.matches('[data-category-field]')){
     const c = categories()[parseInt(t.dataset.idx,10)];
     if(!c) return;
