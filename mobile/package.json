@@ -1,0 +1,18 @@
+{
+  "name": "restostock-mobile",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Enveloppe iOS de RestoStock. Le code de l'application reste dans ../source ; ce dossier ne fait que l'empaqueter.",
+  "scripts": {
+    "sync": "node scripts/sync-www.mjs && npx cap copy ios",
+    "open": "npx cap open ios"
+  },
+  "dependencies": {
+    "@capacitor/cli": "^8.6.0",
+    "@capacitor/core": "^8.6.0",
+    "@capacitor/ios": "^8.6.0"
+  },
+  "devDependencies": {
+    "@capacitor/assets": "^4.0.0"
+  }
+}

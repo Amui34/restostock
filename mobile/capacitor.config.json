@@ -1,0 +1,11 @@
+{
+  "appId": "com.restostock.app",
+  "appName": "RestoStock",
+  "webDir": "www",
+  "ios": {
+    "contentInset": "never",
+    "backgroundColor": "#1a1714",
+    "allowsLinkPreview": false,
+    "limitsNavigationsToAppBoundDomains": false
+  }
+}
