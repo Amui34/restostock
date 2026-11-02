@@ -253,6 +253,82 @@ end $$;
 -- n'apparaît jamais chez les autres sans recharger. Idempotent.
 alter table public.documents replica identity full;
 
+-- ---------------------------------------------------------------
+-- 8. S'en aller — quitter une équipe, fermer un établissement,
+--    supprimer son compte
+--
+--  Le RGPD donne à chacun le droit d'effacer ses données. Mais effacer
+--  n'importe quoi n'importe quand casserait l'établissement des autres :
+--  ces fonctions refusent les suppressions qui laisseraient une équipe
+--  sans responsable, c'est-à-dire sans personne pouvant encore gérer
+--  les rôles ou les réglages.
+--
+--  Aucune de ces opérations n'est réversible : il n'y a pas de corbeille.
+--  C'est volontaire — une corbeille qui conserve les données contredirait
+--  le droit à l'effacement qu'elles servent à exercer.
+-- ---------------------------------------------------------------
+
+-- Fermer l'établissement : emporte l'équipe et toutes les données
+-- (produits, fiches, inventaires, ventes) par cascade.
+create or replace function public.delete_company(c uuid)
+returns void language plpgsql security definer set search_path = public as $$
+begin
+  if public.my_role(c) is distinct from 'patron' then
+    raise exception 'Seul le responsable peut supprimer l''établissement.';
+  end if;
+  delete from public.companies where id = c;
+end $$;
+
+-- Quitter une équipe. Le compte et les autres établissements survivent ;
+-- les données de l'établissement quitté lui appartiennent et restent.
+create or replace function public.leave_company(c uuid)
+returns void language plpgsql security definer set search_path = public as $$
+declare patrons int;
+begin
+  if not public.is_member(c) then
+    raise exception 'Vous ne faites pas partie de cet établissement.';
+  end if;
+  if public.my_role(c) = 'patron' then
+    select count(*) into patrons
+      from public.members where company_id = c and role = 'patron';
+    if patrons <= 1 then
+      raise exception 'Vous êtes le seul responsable : nommez quelqu''un d''autre avant de quitter l''établissement.';
+    end if;
+  end if;
+  delete from public.members where company_id = c and user_id = auth.uid();
+end $$;
+
+-- Supprimer son compte. Refusé tant que la personne est seule responsable
+-- d'un établissement : le fermer ou passer la main est un choix qui lui
+-- revient, pas un effet de bord d'une suppression de compte.
+create or replace function public.delete_my_account()
+returns void language plpgsql security definer set search_path = public, auth as $$
+declare bloquants text;
+begin
+  if auth.uid() is null then raise exception 'Connexion requise'; end if;
+
+  select string_agg(c.name, ', ')
+    into bloquants
+    from public.members m
+    join public.companies c on c.id = m.company_id
+   where m.user_id = auth.uid()
+     and m.role = 'patron'
+     and (select count(*) from public.members m2
+           where m2.company_id = m.company_id and m2.role = 'patron') = 1;
+
+  if bloquants is not null then
+    raise exception
+      'Vous êtes le seul responsable de : %. Supprimez ces établissements, ou nommez un autre responsable, avant de supprimer votre compte.', bloquants;
+  end if;
+
+  delete from auth.users where id = auth.uid();
+end $$;
+
+-- Ces fonctions n'ont aucun sens pour un visiteur non connecté.
+revoke execute on function public.delete_company(uuid)   from anon;
+revoke execute on function public.leave_company(uuid)    from anon;
+revoke execute on function public.delete_my_account()    from anon;
+
 -- =============================================================
 --  Terminé. Plus besoin de créer d'utilisateur à la main :
 --  chacun s'inscrit depuis l'application, le patron crée son

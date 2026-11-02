@@ -9,3 +9,6 @@
   if(a==='import-backup') return importBackup();
   if(a==='team-remove') return removeMember(act.dataset.uid);
   if(a==='team-retry'){ sbTeamError = null; sbMembers = null; render(); return; }
+  if(a==='leave-company')  return leaveCompany();
+  if(a==='delete-company') return deleteCompany();
+  if(a==='delete-account') return deleteMyAccount();

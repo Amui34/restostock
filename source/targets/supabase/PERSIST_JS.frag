@@ -516,6 +516,57 @@ async function setMemberRole(uid, role){
   if(uid === myUserId()){ location.reload(); return; }   // nos propres droits ont changé
   render();
 }
+/* ---- S'en aller ----
+   Trois gestes irréversibles, et aucune corbeille : une corbeille qui garde
+   les données contredirait le droit à l'effacement qu'on exerce ici.
+
+   La base refuse déjà ce qui laisserait une équipe sans responsable. Ces
+   fonctions ne font qu'expliquer le refus, et demander confirmation avant
+   l'irréparable. */
+function erreurLisible(err){
+  const m = (err && err.message) || '';
+  // Les messages de nos fonctions SQL sont déjà écrits pour être lus.
+  return m.replace(/^.*?:\s*/, '').trim() || 'Une erreur est survenue.';
+}
+async function leaveCompany(){
+  if(!confirm(`Quitter « ${sbCompany.name} » ?\n\n`
+    + `Vous perdez l'accès à ses données. Votre compte et vos autres établissements ne changent pas. `
+    + `Il faudra un nouveau code pour revenir.`)) return;
+  const { error } = await sbClient.rpc('leave_company', { c: sbCompany.id });
+  if(error){ alert(erreurLisible(error)); return; }
+  localStorage.removeItem('restostock_company');
+  location.reload();
+}
+async function deleteCompany(){
+  const nom = sbCompany.name;
+  if(!confirm(`SUPPRIMER « ${nom} » ?\n\n`
+    + `Tous les produits, fiches, inventaires et ventes seront effacés, pour toute l'équipe, `
+    + `définitivement. Il n'y a pas de retour en arrière.\n\n`
+    + `Exportez une sauvegarde d'abord si vous voulez en garder une trace.`)) return;
+  // Deuxième barrière : recopier le nom. Un double « OK » s'enchaîne sans
+  // qu'on lise ; recopier oblige à regarder ce qu'on supprime.
+  const saisi = prompt(`Pour confirmer, recopiez le nom de l'établissement :\n\n${nom}`);
+  if(saisi === null) return;
+  if(saisi.trim() !== nom.trim()){ alert('Le nom ne correspond pas — rien n’a été supprimé.'); return; }
+  const { error } = await sbClient.rpc('delete_company', { c: sbCompany.id });
+  if(error){ alert(erreurLisible(error)); return; }
+  localStorage.removeItem('restostock_company');
+  try{ localStorage.removeItem(cacheKey()); }catch(e){}
+  alert(`« ${nom} » a été supprimé.`);
+  location.reload();
+}
+async function deleteMyAccount(){
+  if(!confirm('Supprimer votre compte ?\n\n'
+    + 'Votre adresse et votre nom seront effacés. Les établissements dont vous êtes seul responsable '
+    + 'doivent être supprimés ou confiés à quelqu’un d’autre au préalable — la base le refusera sinon.\n\n'
+    + 'Cette action est définitive.')) return;
+  const { error } = await sbClient.rpc('delete_my_account');
+  if(error){ alert(erreurLisible(error)); return; }
+  await sbClient.auth.signOut();
+  alert('Votre compte a été supprimé.');
+  location.reload();
+}
+
 async function removeMember(uid){
   if(lastPatron(uid)){
     alert('Vous êtes le seul responsable : vous ne pouvez pas vous retirer de l’équipe.');

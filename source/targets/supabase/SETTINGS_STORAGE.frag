@@ -13,3 +13,14 @@
     <div class="field">
       <div class="hint">Source d’import initial : ${esc(state.meta.source)}${state.meta.imported_at ? ` — importé le ${fmtDate(state.meta.imported_at)}` : ''}.</div>
     </div>` : ''}
+    <hr class="hairline">
+    <div class="field">
+      <label style="color:var(--critical);">S’en aller</label>
+      <div class="hint">Ces actions sont définitives : il n’y a pas de corbeille, et rien n’est conservé.
+        Pensez à exporter une sauvegarde avant.</div>
+      <div style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap;">
+        <button type="button" class="btn btn-ghost" data-action="leave-company">Quitter ${esc(sbCompany ? sbCompany.name : 'cet établissement')}</button>
+        ${canEditSettings() ? `<button type="button" class="btn btn-ghost" style="color:var(--critical);" data-action="delete-company">Supprimer l’établissement</button>` : ''}
+        <button type="button" class="btn btn-ghost" style="color:var(--critical);" data-action="delete-account">Supprimer mon compte</button>
+      </div>
+    </div>
