@@ -3189,59 +3189,29 @@ function refreshInventoryRow(inputEl, inv, c){
   const tot = document.getElementById('inv-total-variance');
   if(tot) tot.textContent = fmtMoney(inventoryTotalVarianceValue(inv));
 }
-/* ---- Compter dans l'unité qu'on a en main ----
-   Le stock est tenu en unité de base — des centilitres, des grammes. Mais
-   personne ne compte des centilitres sur une étagère : on compte des
-   bouteilles, et il reste un fond dans la dernière.
+/* ---- Une seule case, dans l'unité du produit ----
+   On a essayé deux cases — les entiers en format d'achat, puis le reste — pour
+   éviter de calculer « 3 bouteilles de 70 cl = 210 cl » de tête. Les données
+   ont tranché contre : sur 379 produits au format exploitable, 202 s'achètent
+   au kilo. On ne COMPTE pas des kilos, on les pèse : la balance donne déjà
+   « 3,04 kg », et deux cases obligeraient à le redécouper en 3 et 40.
 
-   Demander « 210 » pour trois bouteilles de 70 cl, c'est trois fois plus de
-   frappe, un calcul de tête à chaque ligne, et c'est exactement là que les
-   erreurs se glissent. On propose donc deux cases : les entiers dans le
-   format d'achat, et le reste dans l'unité de base. L'appli multiplie.
-
-   La case « reste » n'apparaît que si elle a un sens : un produit vendu à la
-   pièce n'a pas de fond de bouteille. */
-function packLabel(p){
-  // Le format d'achat tel qu'il est écrit sur la fiche produit — « 70cl »,
-  // « 2,5kg ». Le montrer plutôt que deviner « bouteille » ou « carton » :
-  // une étiquette inventée serait fausse une fois sur deux.
-  const l = (p.unit_label || '').trim();
-  if(l) return l;
-  if(p.purchase_size && p.base_unit) return fmtNum(p.purchase_size,0) + baseUnitLabel(p.base_unit);
-  return 'unité';
-}
-function countsByPack(p){
-  return !!(p.purchase_size && p.purchase_size > 1 && p.base_unit);
-}
-// Décompose une quantité de base en entiers + reste, pour réafficher ce que
-// la personne a saisi plutôt qu'un total qu'elle n'a jamais tapé.
-function splitCount(p, qty){
-  if(qty == null) return { whole:'', rest:'' };
-  if(!countsByPack(p)) return { whole: fmtNum(qty,2), rest:'' };
-  const whole = Math.floor(round3(qty) / p.purchase_size);
-  const rest  = round3(qty - whole * p.purchase_size);
-  return { whole: whole || (rest ? 0 : ''), rest: rest || '' };
-}
+   Et le format enregistré ne dit pas toujours ce qu'on a en main : 258 fiches
+   sur 379 portent une étiquette qui ne correspond pas à leur format (« litre »
+   pour 100 cl, « 2,5kg » pour 2500 g). Multiplier par un format incertain
+   produirait des comptages faux sans que rien ne le signale — bien pire qu'une
+   multiplication faite de tête, qu'on refait quand le résultat surprend. */
 function countInputHTML(inv, idx, c, p){
   const cle = `${inv.id}:${idx}`;
-  const { whole, rest } = splitCount(p, c.counted_qty);
-  const champ = (val, cible, suffixe, largeur) => `
-    <label style="display:inline-flex;align-items:center;gap:4px;">
-      <input class="num" style="width:${largeur}px;border:1px solid var(--border);border-radius:6px;padding:4px 6px;background:var(--surface);font-size:15px;"
-             type="text" inputmode="decimal" placeholder="0" value="${val}"
-             data-inv-part="${cible}" data-inventory-count="${cle}">
-      <span class="hint" style="font-size:11.5px;">${esc(suffixe)}</span>
-    </label>`;
-  const saisie = countsByPack(p)
-    ? `<div style="display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap;">
-         ${champ(whole, 'whole', '× ' + packLabel(p), 58)}
-         ${champ(rest,  'rest',  baseUnitLabel(p.base_unit), 58)}
-       </div>
-       <div class="hint" style="font-size:11px;" data-count-total="${cle}">${
-         c.counted_qty!=null ? '= ' + fmtNum(c.counted_qty,2) + ' ' + esc(stockUnitLabel(p)) : ''}</div>`
-    : champ(whole, 'whole', stockUnitLabel(p), 80);
-  return saisie
-    + `<div class="hint" style="font-size:11px;color:var(--warning);" data-count-warn="${cle}">${esc(countWarning(p, c.counted_qty, c.theoretical_qty)||'')}</div>`;
+  return `
+    <label style="display:inline-flex;align-items:center;gap:5px;">
+      <input class="num" style="width:84px;border:1px solid var(--border);border-radius:6px;padding:4px 6px;background:var(--surface);font-size:15px;"
+             type="text" inputmode="decimal" placeholder="0"
+             value="${c.counted_qty!=null ? fmtNum(c.counted_qty,2) : ''}"
+             data-inventory-count="${cle}">
+      <span class="hint" style="font-size:11.5px;">${esc(stockUnitLabel(p))}</span>
+    </label>
+    <div class="hint" style="font-size:11px;color:var(--warning);" data-count-warn="${cle}">${esc(countWarning(p, c.counted_qty, c.theoretical_qty)||'')}</div>`;
 }
 
 function viewInventoryDetail(id, actionsEl){
@@ -4613,29 +4583,8 @@ function saisirComptage(t){
   if(!inv) return;
   const c = inv.counts[parseInt(idx,10)];
   if(!c) return;
-  const p = productById(c.product_id);
-  // Les deux cases forment une seule quantité : on relit la voisine plutôt que
-  // de mémoriser un état, qui se désynchroniserait au prochain rendu.
-  const cellule = t.closest('td') || t.parentElement;
-  const lire = part => {
-    const el = cellule && cellule.querySelector(`[data-inv-part="${part}"]`);
-    return el ? parseNum(el.value) : NaN;
-  };
-  const entiers = lire('whole');
-  const reste   = lire('rest');
-  let total;
-  if(p && countsByPack(p)){
-    // Les deux vides = non compté. Une seule remplie compte pour elle seule :
-    // « 3 bouteilles » sans fond de bouteille est une réponse complète.
-    total = (isNaN(entiers) && isNaN(reste))
-      ? null
-      : round3((isNaN(entiers)?0:entiers) * p.purchase_size + (isNaN(reste)?0:reste));
-  } else {
-    total = isNaN(entiers) ? null : entiers;
-  }
-  c.counted_qty = total;
-  const tot = cellule && cellule.querySelector('[data-count-total]');
-  if(tot && p) tot.textContent = total!=null ? '= ' + fmtNum(total,2) + ' ' + stockUnitLabel(p) : '';
+  const v = parseNum(t.value);
+  c.counted_qty = isNaN(v) ? null : v;
   scheduleSave();
   refreshInventoryRow(t, inv, c);
 }
