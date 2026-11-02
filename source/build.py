@@ -13,6 +13,7 @@ Usage :
     python3 build.py offline    # construit une seule cible
     python3 build.py --check    # vérifie sans écrire (utilisé par les tests)
 """
+import datetime
 import pathlib
 import sys
 
@@ -33,6 +34,11 @@ TARGETS = {
 }
 
 # Page publique, copiée telle quelle : pas de données ni de marqueurs à injecter.
+# Durée de conservation des sauvegardes techniques, telle qu'annoncée dans la
+# page légale. À tenir à jour avec le forfait Supabase réellement souscrit :
+# promettre une durée qu'on n'a pas serait un engagement qu'on ne tiendrait pas.
+LEGAL_BACKUP_DAYS = "7"
+
 LANDING_SRC = HERE / "landing.html"
 LANDING_OUT = "index.html"
 
@@ -109,6 +115,35 @@ def copy_landing(check_only):
         print(f"{LANDING_OUT} généré ({len(html)} caractères) — vitrine")
 
 
+def copy_legal(check_only):
+    """La page légale : même build que la vitrine, deux valeurs injectées.
+
+    La date de mise à jour est celle du fichier source, pas celle du build :
+    reconstruire l'application ne doit pas faire croire que les conditions
+    ont changé.
+    """
+    src = HERE / "legal.html"
+    if not src.exists():
+        return
+    html = src.read_text(encoding="utf-8")
+    maj = datetime.date.fromtimestamp(src.stat().st_mtime)
+    mois = ["janvier", "février", "mars", "avril", "mai", "juin", "juillet",
+            "août", "septembre", "octobre", "novembre", "décembre"]
+    html = html.replace("__DATE_MAJ__", f"{maj.day} {mois[maj.month - 1]} {maj.year}")
+    html = html.replace("__RETENTION_SAUVEGARDES__", LEGAL_BACKUP_DAYS)
+    if "__" in html.replace("__DATE_MAJ__", ""):
+        restants = [m for m in ("__DATE_MAJ__", "__RETENTION_SAUVEGARDES__") if m in html]
+        if restants:
+            raise SystemExit(f"legal.html : marqueurs non remplacés {restants}")
+    out = OUT_DIR / "mentions-legales.html"
+    if check_only:
+        etat = "identique" if out.exists() and out.read_text(encoding="utf-8") == html else "DIFFÉRENT"
+        print(f"mentions-legales.html : {etat}")
+    else:
+        out.write_text(html, encoding="utf-8")
+        print(f"mentions-legales.html généré ({len(html)} caractères)")
+
+
 def copy_app_shell(check_only):
     """Ce qui rend l'appli installable : son manifeste et ses icônes.
 
@@ -155,6 +190,7 @@ def main():
 
     if not args or "supabase" in names:
         copy_landing(check_only)
+        copy_legal(check_only)
         copy_app_shell(check_only)
 
 
