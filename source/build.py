@@ -109,6 +109,31 @@ def copy_landing(check_only):
         print(f"{LANDING_OUT} généré ({len(html)} caractères) — vitrine")
 
 
+def copy_app_shell(check_only):
+    """Ce qui rend l'appli installable : son manifeste et ses icônes.
+
+    Ils vivent à côté de index.html, sous /app/, parce que le manifeste y
+    déclare `start_url: "."` — l'appli s'ouvre donc à son adresse, et pas à
+    la racine du site, qui sert la vitrine.
+    """
+    if check_only:
+        return
+    app_dir = (OUT_DIR / TARGETS["supabase"]).parent
+    app_dir.mkdir(parents=True, exist_ok=True)
+
+    manifeste = HERE / "manifest.webmanifest"
+    if manifeste.exists():
+        (app_dir / manifeste.name).write_bytes(manifeste.read_bytes())
+
+    icons_src = HERE / "appicons"
+    if icons_src.is_dir():
+        icons_out = app_dir / "icons"
+        icons_out.mkdir(parents=True, exist_ok=True)
+        for f in icons_src.glob("*.png"):
+            (icons_out / f.name).write_bytes(f.read_bytes())
+        print(f"manifeste et {len(list(icons_src.glob('*.png')))} icône(s) copiés dans {app_dir.name}/")
+
+
 def main():
     args = [a for a in sys.argv[1:] if not a.startswith("-")]
     check_only = "--check" in sys.argv
@@ -130,6 +155,7 @@ def main():
 
     if not args or "supabase" in names:
         copy_landing(check_only)
+        copy_app_shell(check_only)
 
 
 if __name__ == "__main__":
