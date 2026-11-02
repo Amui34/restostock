@@ -366,6 +366,43 @@ th .info-tip{ font-weight:600; }
 
    On y met ce qui se fait au quotidien ou chaque mois. Le reste n'a pas
    disparu — « Plus » ouvre le menu complet. */
+/* Un tableau à six colonnes ne tient pas dans 402 pixels : les noms s'étalent
+   sur six lignes et une colonne finit coupée. Sur téléphone, les écrans de
+   saisie deviennent donc des cartes — un produit, un bloc.
+
+   On ne se contente pas d'empiler : empiler les six colonnes rendrait chaque
+   ligne six fois plus haute, et 176 produits interminables. Les colonnes de
+   contexte (le mois précédent, la valeur de l'écart) disparaissent, celles
+   qu'on lit sans saisir passent en légende, et seule la saisie garde sa
+   taille. L'information retirée reste accessible en ouvrant la fiche. */
+.tbl-cards td[data-m="meta"]{ color:var(--ink-muted); }
+@media (max-width: 640px){
+  .tbl-cards thead{ display:none; }
+  .tbl-cards, .tbl-cards tbody, .tbl-cards tr, .tbl-cards td{ display:block; width:100%; }
+  .tbl-cards tr{ padding:12px 14px; border-bottom:1px solid var(--border); }
+  .tbl-cards tr:last-child{ border-bottom:none; }
+  .tbl-cards td{ border:none; padding:3px 0; text-align:left; }
+  .tbl-cards td.num{ text-align:left; }
+  .tbl-cards td[data-m="hide"]{ display:none; }
+  .tbl-cards td[data-m="meta"]{ font-size:12.5px; }
+  /* L'intitulé de colonne revient collé à sa valeur, puisque l'en-tête a
+     disparu : « 651,00 cl » seul ne dit pas de quoi il s'agit. */
+  .tbl-cards td[data-label]:not(:empty)::before{
+    content:attr(data-label); margin-right:6px;
+    color:var(--ink-faint); font-size:11px; font-weight:600;
+    text-transform:uppercase; letter-spacing:.07em;
+  }
+  /* Chaque cellule devient une rangée : le champ prend la place disponible, la
+     liste d'unité se range à côté, et les légendes passent dessous. Sans ça le
+     champ en pleine largeur chassait la liste hors de la carte. */
+  .tbl-cards td{ display:flex; flex-wrap:wrap; align-items:center; gap:8px; }
+  .tbl-cards td input[type="text"]{ flex:1 1 130px; width:auto !important; min-height:44px; font-size:16px !important; }
+  .tbl-cards td select{ flex:0 0 auto; width:auto; min-height:44px; font-size:16px !important; }
+  /* Une légende ne partage pas sa ligne : elle explique ce qui est au-dessus. */
+  .tbl-cards td > .hint{ flex:1 0 100%; margin:0; }
+  .tbl-cards .row-actions{ display:flex; justify-content:flex-end; }
+}
+
 .tabbar{ display:none; }
 @media (max-width: 880px){
   .tabbar{
@@ -407,11 +444,16 @@ th .info-tip{ font-weight:600; }
   .sidebar-backdrop:not(.show){ display:none; }
   .content{ padding:16px; }
   .fiche-grid{ grid-template-columns:1fr; }
-  .menu-toggle{
-    all:unset; display:inline-flex; align-items:center; justify-content:center;
-    width:38px; height:38px; border:1px solid var(--border); border-radius:8px;
-    background:var(--surface); font-size:18px; cursor:pointer; flex:none;
-  }
+  /* Deux champs côte à côte dans 402 px se coupent l'un l'autre : on les
+     laisse passer à la ligne plutôt que déborder. */
+  .field-row{ flex-wrap:wrap; }
+  .field-row > .field{ flex:1 1 150px; min-width:0; }
+  .toolbar{ flex-wrap:wrap; }
+  .search{ max-width:none; }
+  /* Le hamburger faisait doublon avec l'onglet « Plus », qui ouvre le même
+     menu et se vise au pouce. Deux portes vers le même endroit, dont une mal
+     placée, c'est une de trop. */
+  .menu-toggle{ display:none; }
   .topbar{ align-items:center; }
 }
 
@@ -2905,7 +2947,7 @@ function viewReception(actionsEl){
         <div class="hint" style="font-size:11px;" data-reception-equiv="${p.id}">${receptionEquivHTML(p, e)}</div></td>
       <td class="num"><input class="num" style="width:100px;border:1px solid var(--border);border-radius:6px;padding:5px 7px;background:var(--surface);font-size:15px;" type="text" step="0.01" min="0" inputmode="decimal" placeholder="—" value="${e.price!=null?e.price:''}" data-reception-price="${p.id}">
         <div class="hint" style="font-size:11px;">€ / ${esc(refUnitLabel(p))}</div></td>
-      <td class="num">${receptionVerdictHTML(p, e.price)}</td>
+      <td class="num" data-m="meta">${receptionVerdictHTML(p, e.price)}</td>
     </tr>`;
   };
 
@@ -2916,7 +2958,7 @@ function viewReception(actionsEl){
 
   const body = list.length
     ? `<h3 style="margin:20px 0 8px;font-size:14px;color:var(--ink-faint);">${heading}</h3>
-       <div class="tablewrap"><table>
+       <div class="tablewrap"><table class="tbl-cards">
          <thead><tr><th>Produit</th><th class="num">Quantité</th><th class="num">Prix</th><th class="num">Comparaison</th></tr></thead>
          <tbody>${list.map(row).join('')}</tbody>
        </table></div>`
@@ -4052,16 +4094,16 @@ function viewInventoryDetail(id, actionsEl){
   const rowHTML = ({p,c,idx,variance,varValue,prev})=>`
         <tr>
           <td>${esc(p.name)}</td>
-          <td class="num">${prev
+          <td class="num" data-m="hide">${prev
             ? `${fmtNum(prev.qty,2)} ${esc(stockUnitLabel(p))}<div class="hint" style="font-size:11px;">${fmtDate(prev.date)}</div>`
             : '<span class="hint">— premier inventaire</span>'}</td>
-          <td class="num">${fmtNum(c.theoretical_qty,2)} ${esc(stockUnitLabel(p))}</td>
+          <td class="num" data-m="meta" data-label="prévu">${fmtNum(c.theoretical_qty,2)} ${esc(stockUnitLabel(p))}</td>
           <td class="num">${inProgress
             ? countInputHTML(inv, idx, c, p)
             : (c.counted_qty!=null?fmtNum(c.counted_qty,2):'—')}</td>
-          <td class="num">${variance!=null?`<span class="trend ${variance>0.0001?'up':variance<-0.0001?'down':'flat'}">${variance>0?'+':''}${fmtNum(variance,2)}</span>`:'—'}</td>
-          <td class="num">${varValue!=null?fmtMoney(varValue):'—'}</td>
-          ${inProgress?`<td class="num no-print"><button type="button" class="btn btn-ghost btn-sm" data-action="remove-product-from-inventory" data-inv="${inv.id}" data-pid="${p.id}" title="Retirer du comptage">✕</button></td>`:''}
+          <td class="num" data-m="meta" data-label="écart">${variance!=null?`<span class="trend ${variance>0.0001?'up':variance<-0.0001?'down':'flat'}">${variance>0?'+':''}${fmtNum(variance,2)}</span>`:'—'}</td>
+          <td class="num" data-m="hide">${varValue!=null?fmtMoney(varValue):'—'}</td>
+          ${inProgress?`<td class="num no-print row-actions"><button type="button" class="btn btn-ghost btn-sm" data-action="remove-product-from-inventory" data-inv="${inv.id}" data-pid="${p.id}" title="Retirer du comptage">✕</button></td>`:''}
         </tr>`;
   const counted = inv.counts.filter(c=>c.counted_qty!=null).length;
   const progressBlock = rows.length ? `
@@ -4110,7 +4152,7 @@ function viewInventoryDetail(id, actionsEl){
       <span>${esc(g)}</span>
       ${inProgress ? `<span class="grp-progress" data-grp-progress="${esc(g)}">${groupProgressHTML(groups[g])}</span>` : ''}
     </h3>
-    <div class="tablewrap"><table>
+    <div class="tablewrap"><table class="tbl-cards">
       <thead><tr><th>Produit</th><th class="num">Réel — mois précédent</th><th class="num">Prévu ${tip('prevu')}</th><th class="num">Réel ${tip('reel')}</th><th class="num">Écart</th><th class="num">Valeur écart</th>${inProgress?'<th class="no-print"></th>':''}</tr></thead>
       <tbody>
       ${groups[g].map(rowHTML).join('')}
