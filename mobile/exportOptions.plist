@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>method</key>            <string>app-store-connect</string>
+  <key>teamID</key>            <string>772LDD7BCT</string>
+  <key>signingStyle</key>      <string>automatic</string>
+  <key>uploadSymbols</key>     <true/>
+  <!-- On ne laisse pas xcodebuild téléverser : altool donne la vraie raison
+       quand l'envoi échoue, là où l'export se contente d'un code d'erreur. -->
+  <key>destination</key>       <string>export</string>
+</dict>
+</plist>
