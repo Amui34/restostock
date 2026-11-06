@@ -370,6 +370,26 @@ th .info-tip{ font-weight:600; }
    taille. L'information retirée reste accessible en ouvrant la fiche. */
 .tbl-cards td[data-m="meta"]{ color:var(--ink-muted); }
 @media (max-width: 640px){
+  /* Plus rien ne glisse sur le côté. Un tableau qu'on fait défiler
+     horizontalement ne se devine pas : on ne sait ni qu'il y a une suite, ni
+     où l'on en est. Sur téléphone, TOUS les tableaux deviennent donc des
+     cartes, et la page ne se parcourt plus que de haut en bas. */
+  .tablewrap{ overflow-x:visible; }
+  .tablewrap table, .tablewrap thead, .tablewrap tbody, .tablewrap tr, .tablewrap td{ display:block; width:100%; }
+  .tablewrap thead{ display:none; }
+  .tablewrap tr{ padding:12px 14px; border-bottom:1px solid var(--border); }
+  .tablewrap tr:last-child{ border-bottom:none; }
+  .tablewrap td{ border:none; padding:3px 0; text-align:left; }
+  .tablewrap td.num{ text-align:left; }
+  /* L'en-tête ayant disparu, chaque valeur reprend le nom de sa colonne —
+     posé après le rendu, pour qu'un tableau ajouté demain en hérite. */
+  .tablewrap td[data-col]:not(:empty)::before{
+    content:attr(data-col) " "; color:var(--ink-faint); font-size:11px; font-weight:600;
+    text-transform:uppercase; letter-spacing:.07em;
+  }
+  /* Une cellule vide ne mérite pas sa ligne. */
+  .tablewrap td:empty{ display:none; }
+  .scroll-note{ display:none; }
   .tbl-cards thead{ display:none; }
   .tbl-cards, .tbl-cards tbody, .tbl-cards tr, .tbl-cards td{ display:block; width:100%; }
   .tbl-cards tr{ padding:12px 14px; border-bottom:1px solid var(--border); }
@@ -1494,7 +1514,33 @@ function render(){
    tableau ajouté demain en hérite sans que personne ait à y penser. Et elle
    n'apparaît que si le tableau déborde vraiment, donc jamais sur un grand
    écran où tout tient. */
+/* Chaque cellule reprend le nom de sa colonne. Sur téléphone l'en-tête
+   disparaît — sans ce rappel, « 651,00 cl » ne dirait plus de quoi il parle.
+   Posé après le rendu plutôt qu'écrit dans chaque écran : un tableau ajouté
+   plus tard en hérite sans que personne y pense. */
+function labelTableCells(){
+  document.querySelectorAll('.tablewrap table').forEach(t=>{
+    const entetes = [...t.querySelectorAll('thead th')].map(th=>{
+      // On retire l'info-bulle « ? » que porte certaines colonnes.
+      const c = th.cloneNode(true);
+      c.querySelectorAll('.info-tip').forEach(e=>e.remove());
+      return c.textContent.trim();
+    });
+    if(!entetes.length) return;
+    t.querySelectorAll('tbody tr').forEach(tr=>{
+      [...tr.children].forEach((td, i)=>{
+        const nom = entetes[i];
+        // La première colonne porte le nom de la ligne : l'étiqueter ferait
+        // doublon. Une colonne sans intitulé n'a rien à annoncer non plus.
+        if(i === 0 || !nom || td.dataset.col) return;
+        td.dataset.col = nom;
+      });
+    });
+  });
+}
+
 function markScrollableTables(){
+  labelTableCells();
   document.querySelectorAll('.tablewrap').forEach(w=>{
     const t = w.querySelector('table');
     const deborde = !!(t && t.scrollWidth > w.clientWidth + 1);
