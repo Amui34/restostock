@@ -293,6 +293,20 @@ td.num, th.num{ text-align:right; font-family:var(--font-mono); font-variant-num
 .field-row > .field{ flex:1; }
 .hairline{ height:1px; background:var(--border); border:none; margin:2px 0; }
 
+/* Voir ce qu'on tape. Un mot de passe saisi en aveugle sur une tablette, les
+   mains humides, au milieu du service, se trompe une fois sur trois — et on
+   ne sait jamais laquelle. Le bouton est dans le champ, pas à côté : il doit
+   se trouver sans le chercher. */
+.pw-wrap{ position:relative; display:block; }
+.pw-wrap input{ width:100%; padding-right:52px !important; }
+.pw-eye{
+  all:unset; position:absolute; right:6px; top:50%; transform:translateY(-50%);
+  width:40px; height:40px; display:grid; place-items:center; cursor:pointer;
+  color:var(--ink-faint); border-radius:8px;
+}
+.pw-eye:hover{ color:var(--ink); background:var(--surface-2); }
+.pw-eye:focus-visible{ outline:2px solid var(--accent); outline-offset:-2px; }
+
 .badge-flag{ display:inline-flex; align-items:center; gap:4px; font-size:11px; padding:2px 7px; border-radius:6px; background:var(--warning-wash); color:var(--warning); font-weight:600; }
 .badge-batch{ display:inline-flex; align-items:center; gap:4px; font-size:11px; padding:2px 7px; border-radius:6px; background:var(--accent-wash); color:var(--accent-strong); font-weight:600; }
 
@@ -654,6 +668,8 @@ const ICONS = {
   download:  '<path d="M12 3.5v11"/><path d="m7.5 10.5 4.5 4.5 4.5-4.5"/><path d="M4.5 19.5h15"/>',
   upload:    '<path d="M12 15.5v-11"/><path d="m7.5 8.5 4.5-4.5 4.5 4.5"/><path d="M4.5 19.5h15"/>',
   chevron:   '<path d="m8 10 4 4 4-4"/>',
+  eye:       '<path d="M2 12s3.6-6.5 10-6.5S22 12 22 12s-3.6 6.5-10 6.5S2 12 2 12Z"/><circle cx="12" cy="12" r="2.8"/>',
+  eyeOff:    '<path d="M4 4.5 20 20.5"/><path d="M9.6 6.1A10.6 10.6 0 0 1 12 5.5c6.4 0 10 6.5 10 6.5a18 18 0 0 1-3.6 4.3"/><path d="M6.4 8A18 18 0 0 0 2 12s3.6 6.5 10 6.5c1.2 0 2.3-.2 3.3-.6"/><path d="M10.2 10.3a2.8 2.8 0 0 0 3.6 3.9"/>',
 };
 function ico(name, size){
   const d = ICONS[name];
@@ -997,6 +1013,18 @@ function authMessage(error){
   return (error && error.message) ? error.message : 'Une erreur est survenue.';
 }
 
+/* Un champ de mot de passe avec son bouton d'affichage. Factorisé : les trois
+   écrans qui en demandent un (connexion, inscription, nouveau mot de passe)
+   doivent se comporter pareil, sinon on apprend le geste à un endroit et on
+   le cherche ailleurs. */
+function champMotDePasse(libelle, autocomplete){
+  return `<div class="field"><label>${esc(libelle)}</label>
+    <span class="pw-wrap">
+      <input type="password" name="password" autocomplete="${autocomplete}" required minlength="6">
+      <button type="button" class="pw-eye" data-action="toggle-pw" aria-label="Afficher le mot de passe">${ico('eye', 19)}</button>
+    </span></div>`;
+}
+
 function signInHTML(mode, message){
   const inscription = mode === 'signup';
   const oubli = mode === 'forgot';
@@ -1026,8 +1054,7 @@ function signInHTML(mode, message){
         <input type="text" name="fullname" autocomplete="name" required></div>` : ''}
       <div class="field"><label>Adresse e-mail</label>
         <input type="email" name="email" autocomplete="username" required></div>
-      <div class="field"><label>Mot de passe</label>
-        <input type="password" name="password" autocomplete="${inscription?'new-password':'current-password'}" required minlength="6"></div>
+      ${champMotDePasse('Mot de passe', inscription ? 'new-password' : 'current-password')}
       ${authError(message)}
       <button type="submit" class="btn btn-primary" style="width:100%;margin-top:14px;">
         ${inscription ? 'Créer mon compte' : 'Entrer'}</button>
@@ -1046,8 +1073,7 @@ function newPasswordHTML(message){
       <h2 style="font-family:var(--font-display);font-size:23px;margin-bottom:6px;">Nouveau mot de passe</h2>
       <p style="color:var(--ink-muted);margin-bottom:20px;font-size:14.5px;">
         Choisissez-en un nouveau. Six caractères au minimum.</p>
-      <div class="field"><label>Nouveau mot de passe</label>
-        <input type="password" name="password" autocomplete="new-password" required minlength="6"></div>
+      ${champMotDePasse('Nouveau mot de passe', 'new-password')}
       ${authError(message)}
       <button type="submit" class="btn btn-primary" style="width:100%;margin-top:14px;">Enregistrer</button>
     </form>`);
@@ -1085,6 +1111,20 @@ function companyPickHTML(list){
 
 // Le nom saisi à l'inscription vit dans le compte ; c'est lui qu'on inscrit sur
 // la ligne d'équipe, sinon le responsable ne verrait qu'une suite d'identifiants.
+function myEmail(){ return sbUser ? (sbUser.email || '') : ''; }
+
+/* Changer son mot de passe sans passer par « mot de passe oublié » : la
+   personne est déjà connectée, lui faire faire le tour par sa boîte mail
+   serait absurde. Supabase accepte la modification sur une session valide. */
+async function changeMyPassword(){
+  const mdp = prompt('Nouveau mot de passe (6 caractères minimum) :');
+  if(mdp === null) return;
+  if(mdp.length < 6){ alert('Six caractères au minimum.'); return; }
+  const { error } = await sbClient.auth.updateUser({ password: mdp });
+  if(error){ alert(authMessage(error)); return; }
+  alert('Mot de passe modifié.');
+}
+
 function currentUserName(){
   const m = sbUser && sbUser.user_metadata;
   return (m && (m.full_name || m.name)) || '';
@@ -4681,6 +4721,25 @@ function viewSettings(){
     </div>
     <hr class="hairline">
     <div class="field">
+      <label>Mon compte</label>
+      <div class="hint">Qui vous êtes pour l’application, et ce que votre rôle vous permet.</div>
+      <div class="fiche-metrics" style="margin-top:8px;">
+        <div class="metric-box"><div class="l">Nom</div>
+          <div class="v" style="font-family:var(--font-body);font-size:15px;">${esc(currentUserName() || '—')}</div></div>
+        <div class="metric-box"><div class="l">Adresse e-mail</div>
+          <div class="v" style="font-family:var(--font-body);font-size:15px;word-break:break-all;">${esc(myEmail() || '—')}</div></div>
+        <div class="metric-box"><div class="l">Établissement</div>
+          <div class="v" style="font-family:var(--font-body);font-size:15px;">${esc(sbCompany ? sbCompany.name : '—')}</div></div>
+        <div class="metric-box"><div class="l">Mon rôle</div>
+          <div class="v" style="font-family:var(--font-body);font-size:15px;">${esc(ROLE_LABELS[myRole()] || '—')}</div></div>
+      </div>
+      <div class="hint" style="margin-top:8px;">${esc(ROLE_EXPLAIN[myRole()] || '')}</div>
+      <div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap;">
+        <button type="button" class="btn" data-action="change-password">${ico('lock')} Changer mon mot de passe</button>
+      </div>
+    </div>
+    <hr class="hairline">
+    <div class="field">
       <label>Données de l’équipe</label>
       <div class="hint">Tout le monde voit les mêmes données, mises à jour en direct. Une sauvegarde de secours reste utile avant une grosse opération (inventaire, reprise de fiches).</div>
       <div style="display:flex;gap:8px;margin-top:6px;flex-wrap:wrap;">
@@ -5120,8 +5179,21 @@ document.addEventListener('click', function(e){
   if(a==='leave-company')  return leaveCompany();
   if(a==='delete-company') return deleteCompany();
   if(a==='delete-account') return deleteMyAccount();
+  if(a==='change-password') return changeMyPassword();
 
   if(a==='open-menu'){ toggleMobileNav(); return; }
+  if(a==='toggle-pw'){
+    // On ne redessine pas : le champ garde sa valeur, son curseur et son focus.
+    const champ = act.parentElement && act.parentElement.querySelector('input');
+    if(!champ) return;
+    const visible = champ.type === 'text';
+    champ.type = visible ? 'password' : 'text';
+    act.innerHTML = ico(visible ? 'eye' : 'eyeOff', 19);
+    act.setAttribute('aria-label', visible ? 'Afficher le mot de passe' : 'Masquer le mot de passe');
+    champ.focus();
+    try{ const n = champ.value.length; champ.setSelectionRange(n, n); }catch(e){}
+    return;
+  }
   if(a==='toggle-nav-more'){ ui.navMore = !ui.navMore; renderNav(); return; }
   if(a==='view-atrisk'){ ui.marginFilter='atRisk'; setView('margins'); return; }
   if(a==='reset-margin-filter'){ ui.marginFilter='all'; render(); return; }

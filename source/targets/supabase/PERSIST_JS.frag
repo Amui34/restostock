@@ -216,6 +216,18 @@ function authMessage(error){
   return (error && error.message) ? error.message : 'Une erreur est survenue.';
 }
 
+/* Un champ de mot de passe avec son bouton d'affichage. Factorisé : les trois
+   écrans qui en demandent un (connexion, inscription, nouveau mot de passe)
+   doivent se comporter pareil, sinon on apprend le geste à un endroit et on
+   le cherche ailleurs. */
+function champMotDePasse(libelle, autocomplete){
+  return `<div class="field"><label>${esc(libelle)}</label>
+    <span class="pw-wrap">
+      <input type="password" name="password" autocomplete="${autocomplete}" required minlength="6">
+      <button type="button" class="pw-eye" data-action="toggle-pw" aria-label="Afficher le mot de passe">${ico('eye', 19)}</button>
+    </span></div>`;
+}
+
 function signInHTML(mode, message){
   const inscription = mode === 'signup';
   const oubli = mode === 'forgot';
@@ -245,8 +257,7 @@ function signInHTML(mode, message){
         <input type="text" name="fullname" autocomplete="name" required></div>` : ''}
       <div class="field"><label>Adresse e-mail</label>
         <input type="email" name="email" autocomplete="username" required></div>
-      <div class="field"><label>Mot de passe</label>
-        <input type="password" name="password" autocomplete="${inscription?'new-password':'current-password'}" required minlength="6"></div>
+      ${champMotDePasse('Mot de passe', inscription ? 'new-password' : 'current-password')}
       ${authError(message)}
       <button type="submit" class="btn btn-primary" style="width:100%;margin-top:14px;">
         ${inscription ? 'Créer mon compte' : 'Entrer'}</button>
@@ -265,8 +276,7 @@ function newPasswordHTML(message){
       <h2 style="font-family:var(--font-display);font-size:23px;margin-bottom:6px;">Nouveau mot de passe</h2>
       <p style="color:var(--ink-muted);margin-bottom:20px;font-size:14.5px;">
         Choisissez-en un nouveau. Six caractères au minimum.</p>
-      <div class="field"><label>Nouveau mot de passe</label>
-        <input type="password" name="password" autocomplete="new-password" required minlength="6"></div>
+      ${champMotDePasse('Nouveau mot de passe', 'new-password')}
       ${authError(message)}
       <button type="submit" class="btn btn-primary" style="width:100%;margin-top:14px;">Enregistrer</button>
     </form>`);
@@ -304,6 +314,20 @@ function companyPickHTML(list){
 
 // Le nom saisi à l'inscription vit dans le compte ; c'est lui qu'on inscrit sur
 // la ligne d'équipe, sinon le responsable ne verrait qu'une suite d'identifiants.
+function myEmail(){ return sbUser ? (sbUser.email || '') : ''; }
+
+/* Changer son mot de passe sans passer par « mot de passe oublié » : la
+   personne est déjà connectée, lui faire faire le tour par sa boîte mail
+   serait absurde. Supabase accepte la modification sur une session valide. */
+async function changeMyPassword(){
+  const mdp = prompt('Nouveau mot de passe (6 caractères minimum) :');
+  if(mdp === null) return;
+  if(mdp.length < 6){ alert('Six caractères au minimum.'); return; }
+  const { error } = await sbClient.auth.updateUser({ password: mdp });
+  if(error){ alert(authMessage(error)); return; }
+  alert('Mot de passe modifié.');
+}
+
 function currentUserName(){
   const m = sbUser && sbUser.user_metadata;
   return (m && (m.full_name || m.name)) || '';

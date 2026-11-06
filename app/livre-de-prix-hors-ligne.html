@@ -277,6 +277,20 @@ td.num, th.num{ text-align:right; font-family:var(--font-mono); font-variant-num
 .field-row > .field{ flex:1; }
 .hairline{ height:1px; background:var(--border); border:none; margin:2px 0; }
 
+/* Voir ce qu'on tape. Un mot de passe saisi en aveugle sur une tablette, les
+   mains humides, au milieu du service, se trompe une fois sur trois — et on
+   ne sait jamais laquelle. Le bouton est dans le champ, pas à côté : il doit
+   se trouver sans le chercher. */
+.pw-wrap{ position:relative; display:block; }
+.pw-wrap input{ width:100%; padding-right:52px !important; }
+.pw-eye{
+  all:unset; position:absolute; right:6px; top:50%; transform:translateY(-50%);
+  width:40px; height:40px; display:grid; place-items:center; cursor:pointer;
+  color:var(--ink-faint); border-radius:8px;
+}
+.pw-eye:hover{ color:var(--ink); background:var(--surface-2); }
+.pw-eye:focus-visible{ outline:2px solid var(--accent); outline-offset:-2px; }
+
 .badge-flag{ display:inline-flex; align-items:center; gap:4px; font-size:11px; padding:2px 7px; border-radius:6px; background:var(--warning-wash); color:var(--warning); font-weight:600; }
 .badge-batch{ display:inline-flex; align-items:center; gap:4px; font-size:11px; padding:2px 7px; border-radius:6px; background:var(--accent-wash); color:var(--accent-strong); font-weight:600; }
 
@@ -25398,6 +25412,8 @@ const ICONS = {
   download:  '<path d="M12 3.5v11"/><path d="m7.5 10.5 4.5 4.5 4.5-4.5"/><path d="M4.5 19.5h15"/>',
   upload:    '<path d="M12 15.5v-11"/><path d="m7.5 8.5 4.5-4.5 4.5 4.5"/><path d="M4.5 19.5h15"/>',
   chevron:   '<path d="m8 10 4 4 4-4"/>',
+  eye:       '<path d="M2 12s3.6-6.5 10-6.5S22 12 22 12s-3.6 6.5-10 6.5S2 12 2 12Z"/><circle cx="12" cy="12" r="2.8"/>',
+  eyeOff:    '<path d="M4 4.5 20 20.5"/><path d="M9.6 6.1A10.6 10.6 0 0 1 12 5.5c6.4 0 10 6.5 10 6.5a18 18 0 0 1-3.6 4.3"/><path d="M6.4 8A18 18 0 0 0 2 12s3.6 6.5 10 6.5c1.2 0 2.3-.2 3.3-.6"/><path d="M10.2 10.3a2.8 2.8 0 0 0 3.6 3.9"/>',
 };
 function ico(name, size){
   const d = ICONS[name];
@@ -29263,6 +29279,18 @@ document.addEventListener('click', function(e){
   if(a==='export-backup') return exportBackup();
   if(a==='trigger-import') return document.getElementById('import-file-input').click();
   if(a==='open-menu'){ toggleMobileNav(); return; }
+  if(a==='toggle-pw'){
+    // On ne redessine pas : le champ garde sa valeur, son curseur et son focus.
+    const champ = act.parentElement && act.parentElement.querySelector('input');
+    if(!champ) return;
+    const visible = champ.type === 'text';
+    champ.type = visible ? 'password' : 'text';
+    act.innerHTML = ico(visible ? 'eye' : 'eyeOff', 19);
+    act.setAttribute('aria-label', visible ? 'Afficher le mot de passe' : 'Masquer le mot de passe');
+    champ.focus();
+    try{ const n = champ.value.length; champ.setSelectionRange(n, n); }catch(e){}
+    return;
+  }
   if(a==='toggle-nav-more'){ ui.navMore = !ui.navMore; renderNav(); return; }
   if(a==='view-atrisk'){ ui.marginFilter='atRisk'; setView('margins'); return; }
   if(a==='reset-margin-filter'){ ui.marginFilter='all'; render(); return; }

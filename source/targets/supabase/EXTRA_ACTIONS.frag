@@ -12,3 +12,4 @@
   if(a==='leave-company')  return leaveCompany();
   if(a==='delete-company') return deleteCompany();
   if(a==='delete-account') return deleteMyAccount();
+  if(a==='change-password') return changeMyPassword();

@@ -1,5 +1,24 @@
     <hr class="hairline">
     <div class="field">
+      <label>Mon compte</label>
+      <div class="hint">Qui vous êtes pour l’application, et ce que votre rôle vous permet.</div>
+      <div class="fiche-metrics" style="margin-top:8px;">
+        <div class="metric-box"><div class="l">Nom</div>
+          <div class="v" style="font-family:var(--font-body);font-size:15px;">${esc(currentUserName() || '—')}</div></div>
+        <div class="metric-box"><div class="l">Adresse e-mail</div>
+          <div class="v" style="font-family:var(--font-body);font-size:15px;word-break:break-all;">${esc(myEmail() || '—')}</div></div>
+        <div class="metric-box"><div class="l">Établissement</div>
+          <div class="v" style="font-family:var(--font-body);font-size:15px;">${esc(sbCompany ? sbCompany.name : '—')}</div></div>
+        <div class="metric-box"><div class="l">Mon rôle</div>
+          <div class="v" style="font-family:var(--font-body);font-size:15px;">${esc(ROLE_LABELS[myRole()] || '—')}</div></div>
+      </div>
+      <div class="hint" style="margin-top:8px;">${esc(ROLE_EXPLAIN[myRole()] || '')}</div>
+      <div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap;">
+        <button type="button" class="btn" data-action="change-password">${ico('lock')} Changer mon mot de passe</button>
+      </div>
+    </div>
+    <hr class="hairline">
+    <div class="field">
       <label>Données de l’équipe</label>
       <div class="hint">Tout le monde voit les mêmes données, mises à jour en direct. Une sauvegarde de secours reste utile avant une grosse opération (inventaire, reprise de fiches).</div>
       <div style="display:flex;gap:8px;margin-top:6px;flex-wrap:wrap;">
