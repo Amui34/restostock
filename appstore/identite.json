@@ -1,0 +1,11 @@
+{
+  "_": "Identité publique de RestoStock. La société en façade, le nom de Noa dans le code, jamais son Gmail perso.",
+  "societe": "SAS NOMAD",
+  "forme_juridique": "SAS",
+  "copyright": "2026 SAS NOMAD",
+  "credit": "Conçu et développé par Noa Madar",
+  "contact": "",
+  "_contact": "Alias public de l'appli (contact@restostock.fr). Vide = les pages affichent « adresse de contact à venir ». Ne jamais y mettre un Gmail personnel.",
+  "git_name": "Noa Madar",
+  "git_email": "330400090+Amui34@users.noreply.github.com"
+}

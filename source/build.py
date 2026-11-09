@@ -14,6 +14,7 @@ Usage :
     python3 build.py --check    # vérifie sans écrire (utilisé par les tests)
 """
 import datetime
+import json
 import pathlib
 import sys
 
@@ -131,10 +132,21 @@ def copy_legal(check_only):
             "août", "septembre", "octobre", "novembre", "décembre"]
     html = html.replace("__DATE_MAJ__", f"{maj.day} {mois[maj.month - 1]} {maj.year}")
     html = html.replace("__RETENTION_SAUVEGARDES__", LEGAL_BACKUP_DAYS)
-    if "__" in html.replace("__DATE_MAJ__", ""):
-        restants = [m for m in ("__DATE_MAJ__", "__RETENTION_SAUVEGARDES__") if m in html]
-        if restants:
-            raise SystemExit(f"legal.html : marqueurs non remplacés {restants}")
+    # L'identité de l'éditeur vit dans un seul fichier : la page légale, la
+    # fiche App Store et le pied de la vitrine doivent dire la même chose, et
+    # une adresse personnelle ne doit jamais s'y glisser.
+    ident = json.loads((HERE.parent / "appstore" / "identite.json").read_text(encoding="utf-8"))
+    contact = (ident.get("contact") or "").strip()
+    if contact.endswith("gmail.com"):
+        raise SystemExit("identite.json : le contact public ne peut pas être une adresse personnelle.")
+    html = html.replace("__EDITEUR__", ident["societe"])
+    html = html.replace("__FORME_JURIDIQUE__", ident["forme_juridique"])
+    html = html.replace("__CONTACT__", contact or "[adresse de contact à venir]")
+    marqueurs = ("__DATE_MAJ__", "__RETENTION_SAUVEGARDES__", "__EDITEUR__",
+                 "__FORME_JURIDIQUE__", "__CONTACT__")
+    restants = [m for m in marqueurs if m in html]
+    if restants:
+        raise SystemExit(f"legal.html : marqueurs non remplacés {restants}")
     out = OUT_DIR / "mentions-legales.html"
     if check_only:
         etat = "identique" if out.exists() and out.read_text(encoding="utf-8") == html else "DIFFÉRENT"
