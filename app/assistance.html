@@ -1,0 +1,196 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<title>Assistance — RestoStock</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="Aide de RestoStock : mot de passe oublié, rôles de l’équipe, sauvegarde et export, suppression du compte, et comment nous joindre.">
+<meta name="theme-color" content="#151815">
+<meta name="robots" content="index,follow">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<style>
+/* Même palette et mêmes polices que la vitrine : une page d'assistance qui ne
+   ressemble pas au site inquiète plus qu'elle ne rassure. */
+:root{
+  --paper:#EEF0EC; --surface:#FFFFFF; --surface-2:#E5E8E2; --border:#D5D9CF;
+  --ink:#1B1E1B; --ink-muted:#5C6459; --ink-faint:#8D9589;
+  --brand:#2E6B4F; --brand-strong:#215239;
+  --radius:10px;
+  --font-display:'Fraunces',Georgia,serif;
+  --font-body:'IBM Plex Sans',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --paper:#151815; --surface:#1E221D; --surface-2:#22271F; --border:#363C34;
+    --ink:#EDEFEA; --ink-muted:#A4AC9D; --ink-faint:#6E7669;
+    --brand:#6FC295; --brand-strong:#8FD6AE;
+  }
+}
+:root[data-theme="dark"]{
+  --paper:#151815; --surface:#1E221D; --surface-2:#22271F; --border:#363C34;
+  --ink:#EDEFEA; --ink-muted:#A4AC9D; --ink-faint:#6E7669;
+  --brand:#6FC295; --brand-strong:#8FD6AE;
+}
+*{ box-sizing:border-box; }
+body{
+  margin:0; background:var(--paper); color:var(--ink);
+  font-family:var(--font-body); font-size:17px; line-height:1.62;
+  -webkit-font-smoothing:antialiased;
+}
+.wrap{ max-width:720px; margin:0 auto; padding:0 24px; }
+h1,h2,h3{ font-family:var(--font-display); font-weight:600; line-height:1.15; margin:0; letter-spacing:-.012em; }
+h1{ font-size:clamp(30px,5vw,42px); }
+h2{ font-size:24px; margin:44px 0 12px; }
+h3{ font-size:18px; margin:26px 0 8px; }
+p{ margin:0 0 15px; }
+a{ color:var(--brand-strong); }
+ul,ol{ margin:0 0 15px; padding-left:22px; }
+li{ margin-bottom:7px; }
+header{ border-bottom:1px solid var(--border); }
+.bar{ display:flex; align-items:center; justify-content:space-between; gap:16px; height:68px; }
+.logo{ display:flex; align-items:center; gap:11px; text-decoration:none; }
+.logo .mark{
+  width:30px; height:30px; border-radius:8px; background:var(--brand); color:#fff;
+  display:grid; place-items:center; font-family:var(--font-display); font-weight:700; font-size:16px;
+}
+.logo .name{ font-family:var(--font-display); font-weight:700; font-size:19px; }
+.lede{ font-size:19px; color:var(--ink-muted); margin:14px 0 0; }
+main{ padding:48px 0 72px; }
+.card{
+  background:var(--surface); border:1px solid var(--border); border-radius:var(--radius);
+  padding:18px 20px; margin:0 0 15px;
+}
+.card h3{ margin-top:0; }
+.card p:last-child{ margin-bottom:0; }
+/* Ce qui reste à compléter avant l'ouverture au public. Visible exprès : une
+   page d'assistance sans moyen de joindre quelqu'un n'assiste personne. */
+.todo{
+  background:#FFF4E0; border:1px solid #E8C98A; color:#6B4E12;
+  border-radius:var(--radius); padding:14px 16px; margin:0 0 15px; font-size:15.5px;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]) .todo{ background:#2E2615; border-color:#5E4D21; color:#E8CF9A; }
+}
+:root[data-theme="dark"] .todo{ background:#2E2615; border-color:#5E4D21; color:#E8CF9A; }
+footer{ border-top:1px solid var(--border); padding:26px 0; color:var(--ink-faint); font-size:14.5px; }
+footer .credit{ display:block; margin-top:4px; }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="wrap bar">
+    <a class="logo" href="./"><span class="mark">R</span><span class="name">RestoStock</span></a>
+    <a href="./">Retour à l’accueil</a>
+  </div>
+</header>
+
+<main class="wrap">
+
+  <h1>Assistance</h1>
+  <p class="lede">Les questions qui reviennent, et comment nous joindre si la réponse n’est pas ici.</p>
+
+  <h2>Nous écrire</h2>
+
+  <div class="todo"><strong>Adresse de contact à venir.</strong> L’adresse d’assistance de RestoStock n’est pas encore ouverte. En attendant, passez par la personne qui vous a installé le service.</div>
+
+  <p>Écrivez depuis l’adresse avec laquelle vous vous êtes inscrit, et dites-nous
+     le nom de votre établissement : cela nous évite un aller-retour. Nous
+     répondons sous deux jours ouvrés.</p>
+
+  <h2>Le compte</h2>
+
+  <div class="card">
+    <h3>J’ai oublié mon mot de passe</h3>
+    <p>Sur l’écran de connexion, « Mot de passe oublié ». Vous recevez un lien
+       valable vingt-quatre heures. S’il a expiré, redemandez-en un : un lien
+       mort ne se répare pas, il se remplace.</p>
+  </div>
+
+  <div class="card">
+    <h3>Je ne reçois pas le message</h3>
+    <p>Regardez dans les indésirables. Si rien n’arrive, c’est en général que
+       l’adresse saisie n’est pas celle du compte — réessayez avec l’autre
+       adresse que vous utilisez, ou écrivez-nous.</p>
+  </div>
+
+  <div class="card">
+    <h3>Faire rejoindre mon équipe</h3>
+    <p>Réglages, puis l’identifiant de l’établissement. Chacun crée son compte
+       et saisit cet identifiant : rien d’autre à installer.</p>
+  </div>
+
+  <h2>Qui voit quoi</h2>
+
+  <p>Trois rôles, et c’est le serveur qui les applique — pas seulement l’écran.
+     Un équipier n’a pas accès aux prix, même en regardant le code de la page.</p>
+
+  <ul>
+    <li><strong>Responsable</strong> — tout, y compris la suppression de l’établissement.</li>
+    <li><strong>Chef</strong> — saisit, consulte les coûts et les marges.</li>
+    <li><strong>Équipier</strong> — réceptions et comptages, sans les prix ni les ventes.</li>
+  </ul>
+
+  <p>Le responsable change un rôle depuis Réglages, à côté du nom de la personne.</p>
+
+  <h2>Vos données</h2>
+
+  <div class="card">
+    <h3>Récupérer une copie</h3>
+    <p>Réglages, « Exporter une sauvegarde ». Vous obtenez un fichier lisible
+       contenant produits, fiches, inventaires et ventes — réutilisable ailleurs,
+       et rechargeable dans l’application par « Importer une sauvegarde ».</p>
+  </div>
+
+  <div class="card">
+    <h3>Supprimer le compte ou l’établissement</h3>
+    <p>Réglages, en bas de page. La suppression est immédiate et définitive :
+       exportez une sauvegarde avant si vous voulez garder une trace. Supprimer
+       l’établissement efface les données de toute l’équipe, c’est pourquoi seul
+       le responsable peut le faire.</p>
+  </div>
+
+  <p>Ce que nous conservons, pourquoi et combien de temps est détaillé dans les
+     <a href="mentions-legales.html">mentions légales et la politique de
+     confidentialité</a>.</p>
+
+  <h2>Les chiffres</h2>
+
+  <div class="card">
+    <h3>Le contrôle des pertes affiche « ventes non saisies »</h3>
+    <p>C’est voulu. Sans les ventes du mois, l’application ne peut pas distinguer
+       ce qui a été vendu de ce qui a disparu. Elle le dit plutôt que de sortir un
+       chiffre qui ferait passer un oubli de saisie pour du vol.</p>
+  </div>
+
+  <div class="card">
+    <h3>Un coût qui semble faux</h3>
+    <p>Les coûts suivent le prix moyen pondéré de ce que vous avez réellement
+       payé, dès deux livraisons saisies pour un produit. Avant cela, c’est le
+       dernier prix connu. Un écart vient presque toujours d’un format d’achat
+       mal renseigné : vérifiez la fiche du produit dans « Produits &amp; prix ».</p>
+  </div>
+
+</main>
+
+<footer>
+  <div class="wrap">
+    RestoStock — suivi des coûts et des stocks en restauration.
+    <span class="credit">SAS NOMAD · Conçu et développé par Noa Madar</span>
+  </div>
+</footer>
+
+<script>
+// L'apparence suit le choix fait sur la vitrine, pour ne pas changer de monde
+// en changeant de page.
+(function(){
+  try{
+    var s = localStorage.getItem('restostock_theme');
+    if(s) document.documentElement.setAttribute('data-theme', s);
+  }catch(e){}
+})();
+</script>
+
+</body>
+</html>

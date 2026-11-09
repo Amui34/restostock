@@ -116,44 +116,81 @@ def copy_landing(check_only):
         print(f"{LANDING_OUT} généré ({len(html)} caractères) — vitrine")
 
 
-def copy_legal(check_only):
-    """La page légale : même build que la vitrine, deux valeurs injectées.
+def identite():
+    """L'identité de l'éditeur, lue à un seul endroit.
+
+    La page légale, la page d'assistance et la fiche App Store doivent dire la
+    même chose : trois copies finiraient par se contredire. Le contrôle sur
+    gmail.com est là parce qu'une adresse personnelle publiée sur un site reste
+    publiée — on la récolte, on ne la retire plus.
+    """
+    ident = json.loads((HERE.parent / "appstore" / "identite.json").read_text(encoding="utf-8"))
+    contact = (ident.get("contact") or "").strip()
+    if contact.endswith("gmail.com"):
+        raise SystemExit("identite.json : le contact public ne peut pas être une adresse personnelle.")
+    ident["contact"] = contact
+    return ident
+
+
+def copy_page(check_only, nom_src, nom_out, remplacements):
+    """Une page du site : on recopie la source en remplaçant ses marqueurs.
 
     La date de mise à jour est celle du fichier source, pas celle du build :
-    reconstruire l'application ne doit pas faire croire que les conditions
-    ont changé.
+    reconstruire l'application ne doit pas faire croire que les conditions ont
+    changé.
     """
-    src = HERE / "legal.html"
+    src = HERE / nom_src
     if not src.exists():
         return
     html = src.read_text(encoding="utf-8")
     maj = datetime.date.fromtimestamp(src.stat().st_mtime)
     mois = ["janvier", "février", "mars", "avril", "mai", "juin", "juillet",
             "août", "septembre", "octobre", "novembre", "décembre"]
-    html = html.replace("__DATE_MAJ__", f"{maj.day} {mois[maj.month - 1]} {maj.year}")
-    html = html.replace("__RETENTION_SAUVEGARDES__", LEGAL_BACKUP_DAYS)
-    # L'identité de l'éditeur vit dans un seul fichier : la page légale, la
-    # fiche App Store et le pied de la vitrine doivent dire la même chose, et
-    # une adresse personnelle ne doit jamais s'y glisser.
-    ident = json.loads((HERE.parent / "appstore" / "identite.json").read_text(encoding="utf-8"))
-    contact = (ident.get("contact") or "").strip()
-    if contact.endswith("gmail.com"):
-        raise SystemExit("identite.json : le contact public ne peut pas être une adresse personnelle.")
-    html = html.replace("__EDITEUR__", ident["societe"])
-    html = html.replace("__FORME_JURIDIQUE__", ident["forme_juridique"])
-    html = html.replace("__CONTACT__", contact or "[adresse de contact à venir]")
-    marqueurs = ("__DATE_MAJ__", "__RETENTION_SAUVEGARDES__", "__EDITEUR__",
-                 "__FORME_JURIDIQUE__", "__CONTACT__")
-    restants = [m for m in marqueurs if m in html]
+    ident = identite()
+    valeurs = {
+        "__DATE_MAJ__": f"{maj.day} {mois[maj.month - 1]} {maj.year}",
+        "__EDITEUR__": ident["societe"],
+        "__CREDIT__": ident["credit"],
+        **remplacements(ident),
+    }
+    for marqueur, valeur in valeurs.items():
+        html = html.replace(marqueur, valeur)
+    restants = [m for m in valeurs if m in html]
     if restants:
-        raise SystemExit(f"legal.html : marqueurs non remplacés {restants}")
-    out = OUT_DIR / "mentions-legales.html"
+        raise SystemExit(f"{nom_src} : marqueurs non remplacés {restants}")
+    out = OUT_DIR / nom_out
     if check_only:
         etat = "identique" if out.exists() and out.read_text(encoding="utf-8") == html else "DIFFÉRENT"
-        print(f"mentions-legales.html : {etat}")
+        print(f"{nom_out} : {etat}")
     else:
         out.write_text(html, encoding="utf-8")
-        print(f"mentions-legales.html généré ({len(html)} caractères)")
+        print(f"{nom_out} généré ({len(html)} caractères)")
+
+
+def copy_legal(check_only):
+    copy_page(check_only, "legal.html", "mentions-legales.html", lambda ident: {
+        "__RETENTION_SAUVEGARDES__": LEGAL_BACKUP_DAYS,
+        "__FORME_JURIDIQUE__": ident["forme_juridique"],
+        "__CONTACT__": ident["contact"] or "[adresse de contact à venir]",
+    })
+
+
+def copy_assistance(check_only):
+    """La page d'assistance — c'est elle que l'App Store donne comme support.
+
+    Sans adresse où écrire, elle n'assiste personne : tant que l'alias du
+    domaine n'existe pas, la page le dit en clair plutôt que de faire semblant.
+    """
+    def bloc(ident):
+        if ident["contact"]:
+            texte = (f'<p class="card">Une question, un problème, une idée :\n'
+                     f'       <a href="mailto:{ident["contact"]}">{ident["contact"]}</a></p>')
+        else:
+            texte = ('<div class="todo"><strong>Adresse de contact à venir.</strong> '
+                     'L’adresse d’assistance de RestoStock n’est pas encore ouverte. '
+                     'En attendant, passez par la personne qui vous a installé le service.</div>')
+        return {"__BLOC_CONTACT__": texte}
+    copy_page(check_only, "assistance.html", "assistance.html", bloc)
 
 
 def copy_app_shell(check_only):
@@ -203,6 +240,7 @@ def main():
     if not args or "supabase" in names:
         copy_landing(check_only)
         copy_legal(check_only)
+        copy_assistance(check_only)
         copy_app_shell(check_only)
 
 
