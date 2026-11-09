@@ -1,11 +1,15 @@
 /* Recopie l'application construite dans l'enveloppe iOS.
  *
- * Deux écarts volontaires avec la version web :
+ * Deux écarts volontaires avec la version web, pour la même raison : une appli
+ * installée ne doit dépendre de personne pour s'afficher.
  *  - la bibliothèque Supabase est embarquée au lieu d'être chargée depuis un
  *    CDN. Une appli installée doit démarrer même si le CDN est lent ou bloqué ;
  *    c'est aussi ce qu'Apple vérifie au lancement pendant la revue.
- *  - les polices restent distantes : elles dégradent proprement, et les
- *    embarquer alourdirait le paquet pour un gain invisible.
+ *  - les polices sont embarquées (sous-ensembles latin et latin-ext). Elles
+ *    dégradaient « proprement » sur le papier ; en vrai, Fraunces porte tous
+ *    les titres et les gros chiffres, et une cave sans réseau est exactement
+ *    l'endroit où l'on fait un inventaire. 810 Ko pour que l'appli ait son
+ *    apparence partout, c'est donné.
  */
 import { mkdirSync, readFileSync, writeFileSync, cpSync, existsSync } from 'node:fs';
 import { dirname, join } from 'node:path';
@@ -36,10 +40,28 @@ if (existsSync(lib)) {
     console.error('Le script Supabase distant n’a pas été trouvé dans index.html — vérifier HEAD.frag.');
     process.exit(1);
   }
-  writeFileSync(join(www, 'index.html'), html);
+  html = html.replace(CDN, 'supabase.min.js');
   console.log('✓ Supabase embarqué');
 } else {
   console.error(`vendor/supabase.min.js absent — télécharger depuis ${CDN}`);
   process.exit(1);
 }
+
+const POLICES = join(ici, '..', 'vendor', 'fonts');
+const LIEN_GOOGLE = /<link rel="preconnect" href="https:\/\/fonts\.googleapis\.com">\s*<link rel="stylesheet" href="https:\/\/fonts\.googleapis\.com\/css2\?[^"]*">/;
+if (existsSync(join(POLICES, 'fonts.css'))) {
+  cpSync(POLICES, join(www, 'fonts'), { recursive: true });
+  const avant = html;
+  html = html.replace(LIEN_GOOGLE, '<link rel="stylesheet" href="fonts/fonts.css">');
+  if (html === avant) {
+    console.error('Le lien vers Google Fonts n’a pas été trouvé dans index.html — vérifier HEAD.frag.');
+    process.exit(1);
+  }
+  console.log('✓ polices embarquées');
+} else {
+  console.error('vendor/fonts/fonts.css absent — voir le commentaire en tête de ce script.');
+  process.exit(1);
+}
+
+writeFileSync(join(www, 'index.html'), html);
 console.log('✓ www synchronisé');
