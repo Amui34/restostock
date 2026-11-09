@@ -184,7 +184,11 @@ h1,h2,h3,h4{ font-family:var(--font-display); font-weight:600; text-wrap:balance
 .search{ position:relative; flex:1; min-width:180px; max-width:320px; }
 .search input{ width:100%; padding:11px 12px 11px 34px; font-size:15.5px; min-height:44px; border:1px solid var(--border); border-radius:9px; background:var(--surface); color:var(--ink); }
 .search::before{ content:"⌕"; position:absolute; left:10px; top:50%; transform:translateY(-50%); color:var(--ink-faint); }
-select.pill, .toolbar select{ padding:10px 12px; min-height:42px; font-size:14.5px; border:1px solid var(--border); border-radius:9px; background:var(--surface); color:var(--ink); }
+/* Une liste déroulante prend la largeur de son option la plus longue : « Toutes
+   familles » restait sage, mais une famille au nom à rallonge poussait la liste
+   à 406 px — plus large que l'écran d'un iPhone, et toute la page se mettait à
+   glisser sur le côté. On la borne à la largeur disponible. */
+select.pill, .toolbar select{ padding:10px 12px; min-height:42px; font-size:14.5px; border:1px solid var(--border); border-radius:9px; background:var(--surface); color:var(--ink); max-width:100%; min-width:0; }
 /* Cibles tactiles : l'appli est utilisée sur tablette, debout, souvent avec les
    mains grasses ou mouillées. 40 px de haut est le minimum confortable au doigt ;
    en dessous, on rate le bouton et on clique sur la ligne d'à côté. */
@@ -198,20 +202,17 @@ select.pill, .toolbar select{ padding:10px 12px; min-height:42px; font-size:14.5
 .btn-sm{ padding:7px 12px; min-height:36px; font-size:13.5px; border-radius:8px; }
 .spacer{ flex:1; }
 
-/* Les deux premiers calques défilent AVEC le contenu (« local ») et viennent
-   recouvrir les ombres dès qu'on atteint un bord : l'ombre de droite s'efface
-   donc d'elle-même une fois la dernière colonne atteinte, sans une ligne de
-   JavaScript. */
+/* Rien ne défile latéralement : un tableau trop large devient une pile de
+   cartes (voir « as-cards » plus bas). On garde overflow-x:auto comme filet —
+   une cellule au contenu insécable ne doit pas déborder sur la page. */
 .tablewrap{ overflow-x:auto; border:1px solid var(--border); border-radius:var(--radius); background:var(--surface); }
-.tablewrap[data-scrollable]{
-  background:
-    linear-gradient(to right, var(--surface) 60%, rgba(0,0,0,0)) left center / 32px 100% no-repeat local,
-    linear-gradient(to left,  var(--surface) 60%, rgba(0,0,0,0)) right center / 32px 100% no-repeat local,
-    radial-gradient(farthest-side at 0 50%, rgba(0,0,0,.14), rgba(0,0,0,0)) left center / 11px 100% no-repeat,
-    radial-gradient(farthest-side at 100% 50%, rgba(0,0,0,.14), rgba(0,0,0,0)) right center / 11px 100% no-repeat,
-    var(--surface);
-}
-.scroll-note{ font-size:12.5px; color:var(--ink-faint); margin-top:6px; }
+/* Premier recours quand un tableau dépasse de peu : on resserre avant de tout
+   casser en cartes. Cent pixels de marges intérieures suffisent souvent. */
+.tablewrap.compact table{ font-size:13px; }
+.tablewrap.compact th, .tablewrap.compact td{ padding-left:9px; padding-right:9px; }
+/* « Prix / unité de base » sur une seule ligne réclamait 197 px à lui seul.
+   Un intitulé sur deux lignes coûte une ligne d'en-tête, et rend la colonne. */
+.tablewrap.compact th{ white-space:normal; }
 table{ width:100%; border-collapse:collapse; font-size:14.5px; }
 th{ text-align:left; padding:11px 14px; font-size:11px; font-weight:600; text-transform:uppercase; letter-spacing:.09em; color:var(--ink-faint); border-bottom:1px solid var(--border); background:var(--surface-2); white-space:nowrap; position:sticky; top:0; }
 th.sortable{ cursor:pointer; user-select:none; }
@@ -372,52 +373,61 @@ th .info-tip{ font-weight:600; }
    qu'on lit sans saisir passent en légende, et seule la saisie garde sa
    taille. L'information retirée reste accessible en ouvrant la fiche. */
 .tbl-cards td[data-m="meta"]{ color:var(--ink-muted); }
-@media (max-width: 640px){
-  /* Plus rien ne glisse sur le côté. Un tableau qu'on fait défiler
-     horizontalement ne se devine pas : on ne sait ni qu'il y a une suite, ni
-     où l'on en est. Sur téléphone, TOUS les tableaux deviennent donc des
-     cartes, et la page ne se parcourt plus que de haut en bas. */
-  .tablewrap{ overflow-x:visible; }
-  .tablewrap table, .tablewrap thead, .tablewrap tbody, .tablewrap tr, .tablewrap td{ display:block; width:100%; }
-  .tablewrap thead{ display:none; }
-  .tablewrap tr{ padding:12px 14px; border-bottom:1px solid var(--border); }
-  .tablewrap tr:last-child{ border-bottom:none; }
-  .tablewrap td{ border:none; padding:3px 0; text-align:left; }
-  .tablewrap td.num{ text-align:left; }
-  /* L'en-tête ayant disparu, chaque valeur reprend le nom de sa colonne —
-     posé après le rendu, pour qu'un tableau ajouté demain en hérite. */
-  .tablewrap td[data-col]:not(:empty)::before{
-    content:attr(data-col) " "; color:var(--ink-faint); font-size:11px; font-weight:600;
-    text-transform:uppercase; letter-spacing:.07em;
-  }
-  /* Une cellule vide ne mérite pas sa ligne. */
-  .tablewrap td:empty{ display:none; }
-  .scroll-note{ display:none; }
-  .tbl-cards thead{ display:none; }
-  .tbl-cards, .tbl-cards tbody, .tbl-cards tr, .tbl-cards td{ display:block; width:100%; }
-  .tbl-cards tr{ padding:12px 14px; border-bottom:1px solid var(--border); }
-  .tbl-cards tr:last-child{ border-bottom:none; }
-  .tbl-cards td{ border:none; padding:3px 0; text-align:left; }
-  .tbl-cards td.num{ text-align:left; }
-  .tbl-cards td[data-m="hide"]{ display:none; }
-  .tbl-cards td[data-m="meta"]{ font-size:12.5px; }
-  /* L'intitulé de colonne revient collé à sa valeur, puisque l'en-tête a
-     disparu : « 651,00 cl » seul ne dit pas de quoi il s'agit. */
-  .tbl-cards td[data-label]:not(:empty)::before{
-    content:attr(data-label); margin-right:6px;
-    color:var(--ink-faint); font-size:11px; font-weight:600;
-    text-transform:uppercase; letter-spacing:.07em;
-  }
-  /* Chaque cellule devient une rangée : le champ prend la place disponible, la
-     liste d'unité se range à côté, et les légendes passent dessous. Sans ça le
-     champ en pleine largeur chassait la liste hors de la carte. */
-  .tbl-cards td{ display:flex; flex-wrap:wrap; align-items:center; gap:8px; }
-  .tbl-cards td input[type="text"]{ flex:1 1 130px; width:auto !important; min-height:44px; font-size:16px !important; }
-  .tbl-cards td select{ flex:0 0 auto; width:auto; min-height:44px; font-size:16px !important; }
-  /* Une légende ne partage pas sa ligne : elle explique ce qui est au-dessus. */
-  .tbl-cards td > .hint{ flex:1 0 100%; margin:0; }
-  .tbl-cards .row-actions{ display:flex; justify-content:flex-end; }
+/* Plus rien ne glisse sur le côté. Un tableau qu'on fait défiler
+   horizontalement ne se devine pas : on ne sait ni qu'il y a une suite, ni où
+   l'on en est. Dès qu'un tableau ne tient pas dans son cadre, il devient donc
+   une pile de cartes — un produit, un bloc — et la page ne se parcourt plus
+   que de haut en bas.
+
+   C'est la place RÉELLEMENT disponible qui décide, pas la taille de l'écran :
+   sur iPad la barre latérale reste affichée, l'écran fait 1024 points mais le
+   tableau n'en reçoit que 800, et un inventaire à sept colonnes y finissait
+   coupé. La mesure est faite en JavaScript (« as-cards »), parce qu'une règle
+   @media ne connaît que la fenêtre, jamais le cadre du tableau. */
+.tablewrap.as-cards table, .tablewrap.as-cards thead,
+.tablewrap.as-cards tbody, .tablewrap.as-cards tr, .tablewrap.as-cards td{ display:block; width:100%; }
+.tablewrap.as-cards thead{ display:none; }
+.tablewrap.as-cards tr{ padding:12px 14px; border-bottom:1px solid var(--border); }
+.tablewrap.as-cards tr:last-child{ border-bottom:none; }
+.tablewrap.as-cards td{ border:none; padding:3px 0; text-align:left; }
+.tablewrap.as-cards td.num{ text-align:left; }
+/* L'en-tête ayant disparu, chaque valeur reprend le nom de sa colonne —
+   posé après le rendu, pour qu'un tableau ajouté demain en hérite. */
+.tablewrap.as-cards td[data-col]:not(:empty)::before{
+  content:attr(data-col) " "; color:var(--ink-faint); font-size:11px; font-weight:600;
+  text-transform:uppercase; letter-spacing:.07em;
 }
+/* Une cellule vide ne mérite pas sa ligne. */
+.tablewrap.as-cards td:empty{ display:none; }
+.as-cards .tbl-cards td[data-m="hide"]{ display:none; }
+.as-cards .tbl-cards td[data-m="meta"]{ font-size:12.5px; }
+/* L'intitulé de colonne revient collé à sa valeur, puisque l'en-tête a
+   disparu : « 651,00 cl » seul ne dit pas de quoi il s'agit. */
+.as-cards .tbl-cards td[data-label]:not(:empty)::before{
+  content:attr(data-label); margin-right:6px;
+  color:var(--ink-faint); font-size:11px; font-weight:600;
+  text-transform:uppercase; letter-spacing:.07em;
+}
+/* Chaque cellule devient une rangée : le champ prend la place disponible, la
+   liste d'unité se range à côté, et les légendes passent dessous. Sans ça le
+   champ en pleine largeur chassait la liste hors de la carte. */
+.as-cards .tbl-cards td{ display:flex; flex-wrap:wrap; align-items:center; gap:8px; }
+.as-cards .tbl-cards td input[type="text"]{ flex:1 1 130px; width:auto !important; min-height:44px; font-size:16px !important; }
+.as-cards .tbl-cards td select{ flex:0 0 auto; width:auto; min-height:44px; font-size:16px !important; }
+/* Une légende ne partage pas sa ligne : elle explique ce qui est au-dessus. */
+.as-cards .tbl-cards td > .hint{ flex:1 0 100%; margin:0; }
+.as-cards .tbl-cards .row-actions{ display:flex; justify-content:flex-end; }
+
+/* Sur tablette le cadre fait 800 points : empiler une valeur par ligne
+   laisserait la moitié droite vide et rendrait un inventaire de seize
+   produits interminable. Le nom garde sa ligne, les valeurs se rangent
+   côte à côte en dessous. */
+.tablewrap.as-cards-wide tr{ display:flex; flex-wrap:wrap; align-items:baseline; column-gap:24px; row-gap:2px; }
+.tablewrap.as-cards-wide td{ width:auto; }
+.tablewrap.as-cards-wide td:first-child{ flex:1 0 100%; font-weight:600; margin-bottom:2px; }
+.as-cards-wide .tbl-cards td{ width:auto; flex:0 1 auto; }
+.as-cards-wide .tbl-cards td input[type="text"]{ flex:0 1 140px; }
+.as-cards-wide .tbl-cards .row-actions{ margin-left:auto; }
 
 .tabbar{ display:none; }
 @media (max-width: 880px){
@@ -489,6 +499,15 @@ th .info-tip{ font-weight:600; }
   .fiche-photo-wrap{ float:right; width:46mm; margin:0 0 8px 10px; }
   .fiche-photo{ aspect-ratio:4/3; }
   .tablewrap{ border:none; box-shadow:none; overflow:visible; }
+  /* Une feuille A4 est large : la fiche s'imprime en colonnes, même si elle
+     était affichée en cartes sur le téléphone qui lance l'impression. */
+  .tablewrap.as-cards table{ display:table; }
+  .tablewrap.as-cards thead{ display:table-header-group; }
+  .tablewrap.as-cards tbody{ display:table-row-group; }
+  .tablewrap.as-cards tr{ display:table-row; padding:0; }
+  .tablewrap.as-cards td, .as-cards .tbl-cards td{ display:table-cell; }
+  .tablewrap.as-cards td[data-col]::before,
+  .as-cards .tbl-cards td[data-label]::before{ content:none; }
   table{ font-size:11pt; }
   th{ background:#eee !important; color:#000; -webkit-print-color-adjust:exact; print-color-adjust:exact; }
   td, th{ padding:5pt 6pt; border-bottom:1px solid #bbb; }
@@ -26339,19 +26358,10 @@ function render(){
     app.innerHTML = `<div class="empty"><div class="big">${ico('alert', 40)}</div><h3>Une erreur est survenue</h3><p>${esc(err.message)}</p></div>`;
     console.error(err);
   }
-  markScrollableTables();
+  fitTables();
 }
 
-/* Un tableau plus large que son cadre défile latéralement — mais rien ne le
-   disait. Sur un portable, les dernières colonnes de « Produits & prix » ou de
-   « Stock & commandes » restaient introuvables : on ne devine pas qu'il faut
-   faire glisser.
-
-   La mention est posée ici, après coup, plutôt que dans chaque écran : un
-   tableau ajouté demain en hérite sans que personne ait à y penser. Et elle
-   n'apparaît que si le tableau déborde vraiment, donc jamais sur un grand
-   écran où tout tient. */
-/* Chaque cellule reprend le nom de sa colonne. Sur téléphone l'en-tête
+/* Chaque cellule reprend le nom de sa colonne. En mode cartes l'en-tête
    disparaît — sans ce rappel, « 651,00 cl » ne dirait plus de quoi il parle.
    Posé après le rendu plutôt qu'écrit dans chaque écran : un tableau ajouté
    plus tard en hérite sans que personne y pense. */
@@ -26376,36 +26386,62 @@ function labelTableCells(){
   });
 }
 
-function markScrollableTables(){
+/* Aucun tableau ne glisse sur le côté : celui qui ne tient pas dans son cadre
+   est d'abord resserré, et s'il déborde encore il devient une pile de cartes.
+   On le mesure plutôt que de le deviner — une règle @media ne connaît que la
+   fenêtre, alors que le cadre dépend aussi de la barre latérale : sur iPad
+   elle reste ouverte et mange 230 des 1024 points.
+
+   Le resserrement évite de transformer en cartes un tableau de référence à
+   qui il ne manquait que cent pixels — sur un portable, « Produits & prix »
+   reste ainsi un tableau, qui se lit bien plus vite qu'une pile.
+
+   On remet d'abord TOUS les tableaux à plat : mesurer des cartes, qui
+   tiennent toujours, les y bloquerait définitivement. Lire scrollWidth force
+   le calcul de mise en page, donc chaque passe mesure bien l'état précédent. */
+function fitTables(){
   labelTableCells();
-  document.querySelectorAll('.tablewrap').forEach(w=>{
-    const t = w.querySelector('table');
-    const deborde = !!(t && t.scrollWidth > w.clientWidth + 1);
-    w.toggleAttribute('data-scrollable', deborde);
-    const suivant = w.nextElementSibling;
-    const note = (suivant && suivant.classList.contains('scroll-note')) ? suivant : null;
-    if(deborde && !note){
-      const n = document.createElement('div');
-      n.className = 'scroll-note no-print';
-      n.textContent = '→ Faites glisser le tableau sur le côté pour voir les colonnes suivantes.';
-      w.after(n);
-    } else if(!deborde && note){
-      note.remove();
-    }
-  });
+  const cadres = [...document.querySelectorAll('.tablewrap')];
+  cadres.forEach(w => w.classList.remove('compact', 'as-cards', 'as-cards-wide'));
+  /* Sur téléphone, tous les tableaux sont des cartes, sans discussion. Un
+     tableau à six colonnes dans 402 px ne « déborde » pas — il se tasse : les
+     noms s'étalent sur quatre lignes et les chiffres se collent. La mesure le
+     laisserait passer ; le lire au comptoir est impossible. */
+  if(window.innerWidth <= 640){
+    cadres.forEach(w => w.classList.add('as-cards'));
+    return;
+  }
+  const deborde = w => { const t = w.querySelector('table'); return !!t && t.scrollWidth > w.clientWidth + 1; };
+  const trop = cadres.filter(deborde);
+  // Un tableau de saisie ne se resserre pas : le champ y perdrait ses chiffres.
+  // Il passe directement en cartes.
+  const saisie = trop.filter(w => w.querySelector('.tbl-cards'));
+  trop.filter(w => !saisie.includes(w)).forEach(w => w.classList.add('compact'));
+  /* Si le resserrement n'a pas suffi quelque part, TOUT l'écran passe en
+     cartes. Un inventaire affiche un tableau par famille : laisser « Fruits &
+     Légumes » en cartes et « Gin » juste en dessous en colonnes donne un écran
+     qui a l'air cassé, alors que chaque moitié est correcte. */
+  if(saisie.length || trop.some(deborde)){
+    cadres.forEach(w => {
+      w.classList.remove('compact');
+      w.classList.add('as-cards');
+      // Sur tablette il reste de la place : les valeurs tiennent côte à côte.
+      if(w.clientWidth > 560) w.classList.add('as-cards-wide');
+    });
+  }
 }
-// Élargir la fenêtre doit faire disparaître la mention, la rétrécir la ramener.
-let scrollNoteTimer = null;
+// Élargir la fenêtre doit ramener les colonnes, la rétrécir ramener les cartes.
+let fitTimer = null;
 function remeasureTablesSoon(){
-  clearTimeout(scrollNoteTimer);
-  scrollNoteTimer = setTimeout(markScrollableTables, 150);
+  clearTimeout(fitTimer);
+  fitTimer = setTimeout(fitTables, 150);
 }
 window.addEventListener('resize', remeasureTablesSoon);
 /* Les polices arrivent APRÈS le premier rendu : un tableau mesuré avec la
    police de secours ne fait pas la même largeur qu'une fois Fraunces et IBM
-   Plex en place. Sans cette reprise, la mention pouvait manquer — ou rester
-   alors que le tableau tient désormais. */
-if(document.fonts && document.fonts.ready) document.fonts.ready.then(markScrollableTables);
+   Plex en place. Sans cette reprise, un tableau pouvait rester coupé — ou
+   rester en cartes alors qu'il tient désormais. */
+if(document.fonts && document.fonts.ready) document.fonts.ready.then(fitTables);
 
 /* ================= Historique ================= */
 // Tout ce qui s'est passé dans le restaurant, reconstitué directement depuis les données
