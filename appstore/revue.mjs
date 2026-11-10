@@ -35,15 +35,60 @@ const texte = readFileSync(`${process.env.HOME}/.restostock-demo`, 'utf8');
 const email = texte.match(/adresse\s*:\s*(\S+)/)[1];
 const mdp   = texte.match(/mot de passe\s*:\s*(\S+)/)[1];
 
-const notes = `Application de gestion pour les professionnels de la restauration.
+/* Apple reclame souvent, pour une premiere application, bien plus que les
+ * identifiants : a quoi elle sert, pour qui, comment s'en servir, quels
+ * services externes, et d'ou vient le contenu. Le dire des la premiere
+ * soumission evite un refus 2.1 « Information Needed » et deux semaines. */
+const notes = `OBJET ET PUBLIC
 
-Un compte est necessaire pour acceder a l'application. Le compte de
-demonstration ci-dessous contient un etablissement deja rempli (produits,
-fiches techniques, inventaires, ventes) afin que toutes les fonctions
-soient accessibles immediatement.
+RestoStock est un outil de gestion pour les professionnels de la
+restauration : restaurants et bars. Il calcule le cout de revient de
+chaque plat a partir des prix d'achat reellement payes, suit les stocks,
+et chiffre les pertes en fin de mois en comparant ce qui est sorti du
+stock a ce que les ventes auraient du consommer.
+
+Il n'y a aucun achat integre, aucune publicite et aucun suivi
+publicitaire. L'application est gratuite et identique dans tous les pays.
+L'interface est en francais uniquement.
+
+COMPTE DE DEMONSTRATION
+
+Un compte est necessaire pour acceder a l'application. Le compte ci-dessous
+contient un etablissement deja rempli (produits, fiches techniques,
+inventaires, ventes) afin que toutes les fonctions soient accessibles
+immediatement, sans rien saisir.
+
+COMMENT S'EN SERVIR
+
+1. Se connecter avec les identifiants fournis.
+2. « Tableau de bord » : la vue d'ensemble, food cost et valeur du stock.
+3. « Fiches cocktails » ou « Fiches cuisine » : le cout et la marge de
+   chaque recette ; toucher une fiche pour voir le detail.
+4. « Controle des pertes » : choisir un inventaire de fin de periode dans
+   la liste pour voir la perte chiffree, produit par produit.
+5. « Inventaires » : ouvrir celui du 6 novembre pour voir un comptage en
+   cours et saisir une quantite.
+6. « Reception du jour » : saisir une livraison ; le stock et les couts se
+   recalculent seuls.
+
+SERVICES EXTERNES
+
+Un seul : Supabase (hebergement de la base de donnees et authentification,
+serveurs dans l'Union europeenne). L'application ne contacte aucun autre
+service ; les polices sont embarquees dans l'application.
+
+CONTENU
+
+Tout le contenu est cree par l'editeur ou saisi par l'utilisateur. Aucun
+contenu de tiers, aucune donnee achetee ou importee d'un service externe.
+Les noms de produits visibles dans le compte de demonstration sont des
+donnees d'exemple.
+
+AUTRES ACCES
 
 L'application est egalement accessible depuis un navigateur a l'adresse
-https://restostock.fr/app/ avec les memes identifiants.`;
+https://restostock.fr/app/ avec les memes identifiants.
+Assistance : https://restostock.fr/assistance.html`;
 
 const attributs = {
   contactFirstName: prenom, contactLastName: nom,
