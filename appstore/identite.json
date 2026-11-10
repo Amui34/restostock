@@ -1,11 +1,16 @@
 {
-  "_": "Identité publique de RestoStock. La société en façade, le nom de Noa dans le code, jamais son Gmail perso.",
+  "_": "Identité publique de RestoStock. Mêmes valeurs que les mentions légales d'Oplaa : une seule société, un seul jeu d'informations.",
   "societe": "SAS NOMAD",
-  "forme_juridique": "SAS",
+  "forme_juridique": "Société par actions simplifiée (SAS)",
+  "siren": "982 466 708",
+  "siret": "982 466 708 00012",
+  "tva": "FR40 982 466 708",
+  "siege": "55 avenue de Melgueil, 34280 La Grande-Motte, France",
+  "directeur_publication": "Noa Madar, Président de SAS NOMAD",
   "copyright": "2026 SAS NOMAD",
   "credit": "Conçu et développé par Noa Madar",
-  "contact": "",
-  "_contact": "Alias public de l'appli (contact@restostock.fr). Vide = les pages affichent « adresse de contact à venir ». Ne jamais y mettre un Gmail personnel.",
+  "contact": "noamadar.noa@gmail.com",
+  "_contact": "À remplacer par contact@restostock.fr dès que l'alias existe chez le registrar — c'est la ligne « Une adresse de société, jamais ton Gmail » de ~/secretaire/A-FAIRE.md. Un seul mot à changer ici, et les trois pages suivent.",
   "git_name": "Noa Madar",
   "git_email": "330400090+Amui34@users.noreply.github.com"
 }

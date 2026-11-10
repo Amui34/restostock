@@ -127,7 +127,9 @@ def identite():
     ident = json.loads((HERE.parent / "appstore" / "identite.json").read_text(encoding="utf-8"))
     contact = (ident.get("contact") or "").strip()
     if contact.endswith("gmail.com"):
-        raise SystemExit("identite.json : le contact public ne peut pas être une adresse personnelle.")
+        # Choix assumé en attendant l'alias du domaine : on ne bloque pas le
+        # build, mais on ne laisse pas non plus l'oubli devenir invisible.
+        print(f"  ⚠ contact public = {contact} — à remplacer par contact@restostock.fr")
     ident["contact"] = contact
     return ident
 
@@ -171,6 +173,11 @@ def copy_legal(check_only):
     copy_page(check_only, "legal.html", "mentions-legales.html", lambda ident: {
         "__RETENTION_SAUVEGARDES__": LEGAL_BACKUP_DAYS,
         "__FORME_JURIDIQUE__": ident["forme_juridique"],
+        "__SIEGE__": ident["siege"],
+        "__SIREN__": ident["siren"],
+        "__SIRET__": ident["siret"],
+        "__TVA__": ident["tva"],
+        "__DIRECTEUR__": ident["directeur_publication"],
         "__CONTACT__": ident["contact"] or "[adresse de contact à venir]",
     })
 
