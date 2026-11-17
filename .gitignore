@@ -1,3 +1,20 @@
 **/.DS_Store
 **/__pycache__/
 *.pyc
+
+# Ce dépôt est PUBLIC. Un secret poussé une fois reste lisible dans
+# l'historique même après suppression, et les robots le ramassent en
+# quelques minutes. Ces motifs sont un filet, pas une permission : les vrais
+# secrets vivent hors du dépôt (~/.appstoreconnect, ~/.restostock-demo).
+.env
+.env.*
+!.env.example
+*.p8
+*.p12
+*.pem
+*.key
+*.keystore
+*.mobileprovision
+*secret*
+*credential*
+.restostock-demo
